@@ -227,6 +227,108 @@ Then 已保存的持仓数据仍然可以显示
 And 系统明确标记行情暂时不可用
 ```
 
+## US-07：分析投资组合表现（第二阶段）
+
+**作为一名投资者，**  
+我希望看到投资组合及每项资产的成本、当前价值、盈亏和收益率，  
+以便评估自己的投资表现并了解哪些资产对整体结果影响最大。
+
+### 验收标准
+
+```gherkin
+Given 用户存在购买记录
+And 行情服务能够返回当前价格
+When 用户查看Performance分析
+Then 系统返回总投入成本
+And 系统返回投资组合当前总价值
+And 系统返回未实现盈亏金额
+And 系统返回未实现收益率
+And 响应中标明货币和行情更新时间
+And HTTP状态码为200
+```
+
+```gherkin
+Given 用户以不同价格多次购买同一股票
+When 系统计算该股票的成本
+Then 系统使用加权平均买入成本
+And 正确计算该股票的未实现盈亏和收益率
+```
+
+```gherkin
+Given 投资组合中包含多项资产
+When 用户查看Performance分析
+Then 系统返回每项资产的成本、当前价值、盈亏和收益率
+And 系统返回每项资产占投资组合当前价值的比例
+```
+
+```gherkin
+Given 用户当前没有任何持仓
+When 用户查看Performance分析
+Then 系统返回总成本和当前价值为0
+And 不产生除以0错误
+And HTTP状态码为200
+```
+
+```gherkin
+Given 部分资产缺少当前行情
+When 用户查看Performance分析
+Then 系统将结果标记为PARTIAL
+And 明确列出缺少行情的股票代码
+And 不把缺失价格错误地当作0
+```
+
+建议接口：
+
+```http
+GET /api/portfolio/performance
+```
+
+响应示例：
+
+```json
+{
+  "currency": "USD",
+  "totalCost": 1805.00,
+  "currentValue": 1950.00,
+  "unrealizedProfitLoss": 145.00,
+  "returnPercentage": 8.03,
+  "status": "COMPLETE",
+  "priceUpdatedAt": "2026-07-27T10:35:00Z",
+  "assets": [
+    {
+      "symbol": "AAPL",
+      "quantity": 10,
+      "averageCost": 180.50,
+      "currentPrice": 195.00,
+      "currentValue": 1950.00,
+      "unrealizedProfitLoss": 145.00,
+      "returnPercentage": 8.03,
+      "allocationPercentage": 100.00
+    }
+  ],
+  "missingPrices": []
+}
+```
+
+基础计算规则：
+
+```text
+单项成本 = 持有数量 × 加权平均买入价格
+单项当前价值 = 持有数量 × 当前价格
+未实现盈亏 = 当前价值 - 当前持仓成本
+收益率 = 未实现盈亏 ÷ 当前持仓成本 × 100%
+资产占比 = 单项当前价值 ÷ 投资组合当前总价值 × 100%
+```
+
+技术说明：
+
+- 该功能依赖US-05中的购买历史和US-06中的当前行情。
+- 金额和比例计算应使用`BigDecimal`，不要使用`double`。
+- 多币种资产不能直接相加；第一版可以只支持一种基础货币。
+- Performance响应应包含行情更新时间，避免用户误以为数据是实时的。
+- 历史收益曲线需要历史行情或每日组合快照，可以作为后续增强功能。
+- 页面可以使用折线图展示组合价值变化，并使用饼图展示资产占比。
+
 ## MVP完成定义
 
 以下条件全部满足时，第一版MVP可以视为完成：
@@ -241,4 +343,4 @@ And 系统明确标记行情暂时不可用
 - GitHub CI检查通过。
 - README包含启动方法和API调用示例。
 
-US-05和US-06属于第二阶段，不阻塞第一版MVP交付。
+US-05、US-06和US-07属于第二阶段，不阻塞第一版MVP交付。
