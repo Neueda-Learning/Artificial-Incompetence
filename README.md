@@ -106,3 +106,15 @@ Tests use an in-memory H2 database and do not require Docker:
 cd backend
 mvn test
 ```
+
+## Continuous integration
+
+GitHub Actions runs the backend CI workflow for pushes and pull requests
+targeting `main`. The workflow:
+
+1. Sets up Java 21.
+2. Runs Maven verification, including tests and packaging.
+3. Builds the backend Docker image without pushing it.
+
+The workflow can also be started manually from the repository's **Actions**
+page. Its definition is in `.github/workflows/ci.yml`.
