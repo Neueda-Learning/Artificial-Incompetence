@@ -1,5 +1,11 @@
 import React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import App from "./App";
 import * as portfolioService from "./services/portfolioService";
 
@@ -13,11 +19,39 @@ describe("Portfolio Manager frontend", () => {
     window.localStorage.clear();
     jest.clearAllMocks();
     mockedService.getPortfolioItems.mockResolvedValue([]);
+    mockedService.getPortfolioValue.mockResolvedValue({
+      currency: "USD",
+      priceUpdatedAt: null,
+      status: "COMPLETE",
+      assets: [],
+      missingPrices: [],
+    });
+    mockedService.getPortfolioPerformance.mockResolvedValue({
+      currency: "USD",
+      totalCost: 0,
+      currentValue: 0,
+      unrealizedProfitLoss: 0,
+      returnPercentage: 0,
+      status: "COMPLETE",
+      priceUpdatedAt: null,
+      assets: [],
+      missingPrices: [],
+    });
+    mockedService.getTransactions.mockResolvedValue([]);
     mockedService.createPortfolioItem.mockResolvedValue({
       id: 1,
       assetType: "STOCK",
       symbol: "AAPL",
       quantity: 5,
+    });
+    mockedService.createTransaction.mockResolvedValue({
+      id: 100,
+      assetType: "STOCK",
+      symbol: "AAPL",
+      quantity: 5,
+      pricePerUnit: 100,
+      currency: "USD",
+      purchasedAt: "2026-01-01T00:00:00.000Z",
     });
     mockedService.deletePortfolioItem.mockResolvedValue();
   });
@@ -50,6 +84,31 @@ describe("Portfolio Manager frontend", () => {
       await screen.findByText(/is already in your portfolio/i),
     ).toBeInTheDocument();
     expect(screen.getByText(/Current shares: 10/i)).toBeInTheDocument();
+  });
+
+  it("requires a purchase price before adding an asset", async () => {
+    render(<App />);
+    await screen.findByText("Start building your portfolio");
+
+    fireEvent.click(screen.getByRole("button", { name: "Add Asset" }));
+    fireEvent.change(screen.getByLabelText("Asset symbol"), {
+      target: { value: "AAPL" },
+    });
+    fireEvent.change(screen.getByLabelText("Shares"), {
+      target: { value: "2" },
+    });
+
+    const priceInput = screen.getByLabelText("Purchase price per share");
+    const submitButton = within(screen.getByRole("dialog")).getByRole(
+      "button",
+      { name: "Add Asset" },
+    );
+
+    expect(priceInput).toBeRequired();
+    expect(submitButton).toBeDisabled();
+
+    fireEvent.change(priceInput, { target: { value: "180.50" } });
+    expect(submitButton).toBeEnabled();
   });
 
   it("shows partial-removal guidance in Remove Asset flow", async () => {
@@ -156,7 +215,9 @@ describe("Portfolio Manager frontend", () => {
     render(<App />);
     await screen.findByText("Top Holdings");
 
-    expect(screen.getByText(/Base currency: USD/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Base currency: USD/i).length).toBeGreaterThan(
+      0,
+    );
     fireEvent.click(screen.getByRole("link", { name: "Holdings" }));
     expect(await screen.findByText("Current Price")).toBeInTheDocument();
     expect(screen.getByText("Avg. Cost")).toBeInTheDocument();

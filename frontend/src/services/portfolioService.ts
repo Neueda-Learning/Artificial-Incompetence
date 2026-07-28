@@ -1,5 +1,15 @@
 import api from "./api";
-import { CreatePortfolioItemRequest, PortfolioItem } from "../types/portfolio";
+import {
+  AssetPerformance,
+  CreatePortfolioItemRequest,
+  CreateTransactionRequest,
+  PortfolioItem,
+  PortfolioPerformance,
+  PortfolioStatus,
+  PortfolioValue,
+  PortfolioValueAsset,
+  Transaction,
+} from "../types/portfolio";
 
 const USE_MOCK_DATA = process.env.REACT_APP_USE_MOCK_DATA === "true";
 const MOCK_ITEMS_STORAGE_KEY = "portfolio-manager-mock-items-v1";
@@ -9,7 +19,61 @@ interface RawPortfolioItem {
   id: number;
   assetType: PortfolioItem["assetType"];
   symbol: string;
+  companyName?: string | null;
+  exchange?: string | null;
   quantity: number | string;
+  currency?: string | null;
+}
+
+interface RawPortfolioValueAsset {
+  symbol: string;
+  assetType: PortfolioItem["assetType"];
+  quantity: number | string;
+  currentPrice: number | string | null;
+  marketValue: number | string | null;
+  currency: string | null;
+}
+
+interface RawPortfolioValue {
+  currency: string;
+  priceUpdatedAt: string | null;
+  status: PortfolioStatus;
+  assets: RawPortfolioValueAsset[];
+  missingPrices: string[];
+}
+
+interface RawAssetPerformance {
+  symbol: string;
+  quantity: number | string;
+  averageCost: number | string | null;
+  currentPrice: number | string | null;
+  costBasis: number | string;
+  currentValue: number | string | null;
+  unrealizedProfitLoss: number | string | null;
+  returnPercentage: number | string | null;
+  allocationPercentage: number | string | null;
+}
+
+interface RawPortfolioPerformance {
+  currency: string;
+  totalCost: number | string;
+  currentValue: number | string;
+  unrealizedProfitLoss: number | string;
+  returnPercentage: number | string;
+  status: PortfolioPerformance["status"];
+  priceUpdatedAt: string | null;
+  assets: RawAssetPerformance[];
+  missingPrices: string[];
+}
+
+interface RawTransaction {
+  id: number;
+  assetType: PortfolioItem["assetType"];
+  symbol: string;
+  quantity: number | string;
+  pricePerUnit: number | string;
+  currency: string;
+  purchasedAt: string;
 }
 
 function normalizeItem(item: RawPortfolioItem): PortfolioItem {
@@ -18,6 +82,50 @@ function normalizeItem(item: RawPortfolioItem): PortfolioItem {
     assetType: item.assetType,
     symbol: item.symbol,
     quantity: Number(item.quantity),
+  };
+}
+
+function normalizeOptionalNumber(value: number | string | null): number | null {
+  if (value === null) {
+    return null;
+  }
+  return Number(value);
+}
+
+function normalizeValueAsset(asset: RawPortfolioValueAsset): PortfolioValueAsset {
+  return {
+    symbol: asset.symbol,
+    assetType: asset.assetType,
+    quantity: Number(asset.quantity),
+    currentPrice: normalizeOptionalNumber(asset.currentPrice),
+    marketValue: normalizeOptionalNumber(asset.marketValue),
+    currency: asset.currency,
+  };
+}
+
+function normalizeAssetPerformance(asset: RawAssetPerformance): AssetPerformance {
+  return {
+    symbol: asset.symbol,
+    quantity: Number(asset.quantity),
+    averageCost: normalizeOptionalNumber(asset.averageCost),
+    currentPrice: normalizeOptionalNumber(asset.currentPrice),
+    costBasis: Number(asset.costBasis),
+    currentValue: normalizeOptionalNumber(asset.currentValue),
+    unrealizedProfitLoss: normalizeOptionalNumber(asset.unrealizedProfitLoss),
+    returnPercentage: normalizeOptionalNumber(asset.returnPercentage),
+    allocationPercentage: normalizeOptionalNumber(asset.allocationPercentage),
+  };
+}
+
+function normalizeTransaction(transaction: RawTransaction): Transaction {
+  return {
+    id: transaction.id,
+    assetType: transaction.assetType,
+    symbol: transaction.symbol,
+    quantity: Number(transaction.quantity),
+    pricePerUnit: Number(transaction.pricePerUnit),
+    currency: transaction.currency,
+    purchasedAt: transaction.purchasedAt,
   };
 }
 
@@ -115,4 +223,46 @@ export async function deletePortfolioItem(id: number): Promise<void> {
   }
 
   await api.delete(`/portfolio/items/${id}`);
+}
+
+export async function getPortfolioValue(): Promise<PortfolioValue> {
+  const response = await api.get("/portfolio/value");
+  const raw = response.data as RawPortfolioValue;
+  return {
+    currency: raw.currency,
+    priceUpdatedAt: raw.priceUpdatedAt,
+    status: raw.status,
+    assets: raw.assets.map(normalizeValueAsset),
+    missingPrices: raw.missingPrices,
+  };
+}
+
+export async function getPortfolioPerformance(): Promise<PortfolioPerformance> {
+  const response = await api.get("/portfolio/performance");
+  const raw = response.data as RawPortfolioPerformance;
+  return {
+    currency: raw.currency,
+    totalCost: Number(raw.totalCost),
+    currentValue: Number(raw.currentValue),
+    unrealizedProfitLoss: Number(raw.unrealizedProfitLoss),
+    returnPercentage: Number(raw.returnPercentage),
+    status: raw.status,
+    priceUpdatedAt: raw.priceUpdatedAt,
+    assets: raw.assets.map(normalizeAssetPerformance),
+    missingPrices: raw.missingPrices,
+  };
+}
+
+export async function getTransactions(): Promise<Transaction[]> {
+  const response = await api.get("/transactions", {
+    params: { type: "BUY" },
+  });
+  return (response.data as RawTransaction[]).map(normalizeTransaction);
+}
+
+export async function createTransaction(
+  payload: CreateTransactionRequest,
+): Promise<Transaction> {
+  const response = await api.post("/transactions", payload);
+  return normalizeTransaction(response.data as RawTransaction);
 }

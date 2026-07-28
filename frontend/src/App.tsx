@@ -11,14 +11,22 @@ import DeleteAssetModal, {
   RemoveAssetPayload,
 } from "./components/Header/DeleteAssetModal";
 import {
+  createTransaction,
   createPortfolioItem,
   deletePortfolioItem,
+  getPortfolioPerformance,
   getPortfolioItems,
+  getPortfolioValue,
+  getTransactions,
 } from "./services/portfolioService";
 import {
   ActivityRecord,
   AggregatedHolding,
+  AssetPerformance,
+  PortfolioPerformance,
+  PortfolioValue,
   PortfolioItem,
+  Transaction,
 } from "./types/portfolio";
 import {
   aggregateHoldings,
@@ -36,6 +44,12 @@ function App() {
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isRemoveOpen, setIsRemoveOpen] = useState(false);
+  const [portfolioValue, setPortfolioValue] = useState<PortfolioValue | null>(
+    null,
+  );
+  const [portfolioPerformance, setPortfolioPerformance] =
+    useState<PortfolioPerformance | null>(null);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [activities, setActivities] = useState<ActivityRecord[]>(() =>
     loadActivities(),
   );
@@ -44,8 +58,39 @@ function App() {
     setIsLoading(true);
     setError(null);
     try {
-      const portfolioItems = await getPortfolioItems();
+      const [itemsResult, valueResult, performanceResult, transactionsResult] =
+        await Promise.allSettled([
+          getPortfolioItems(),
+          getPortfolioValue(),
+          getPortfolioPerformance(),
+          getTransactions(),
+        ]);
+
+      if (itemsResult.status === "rejected") {
+        throw itemsResult.reason;
+      }
+
+      const portfolioItems = itemsResult.value;
       setItems(portfolioItems);
+
+      if (valueResult.status === "fulfilled") {
+        setPortfolioValue(valueResult.value);
+      } else {
+        setPortfolioValue(null);
+      }
+
+      if (performanceResult.status === "fulfilled") {
+        setPortfolioPerformance(performanceResult.value);
+      } else {
+        setPortfolioPerformance(null);
+      }
+
+      if (transactionsResult.status === "fulfilled") {
+        setTransactions(transactionsResult.value);
+      } else {
+        setTransactions([]);
+      }
+
       setLastUpdated(new Date().toISOString());
     } catch (requestError) {
       setError("Unable to load portfolio data. Please retry.");
@@ -67,6 +112,14 @@ function App() {
     [items],
   );
 
+  const performanceBySymbol = useMemo<Record<string, AssetPerformance>>(() => {
+    const entries = portfolioPerformance?.assets ?? [];
+    return entries.reduce<Record<string, AssetPerformance>>((acc, asset) => {
+      acc[asset.symbol.toUpperCase()] = asset;
+      return acc;
+    }, {});
+  }, [portfolioPerformance]);
+
   const appendActivity = useCallback((record: ActivityRecord) => {
     setActivities((current) =>
       [record, ...current].slice(0, MAX_ACTIVITY_ITEMS),
@@ -78,11 +131,27 @@ function App() {
       const currentHolding = holdings.find(
         (holding) => holding.symbol === payload.symbol,
       );
-      await createPortfolioItem({
-        assetType: payload.assetType,
-        symbol: payload.symbol,
-        quantity: payload.shares,
-      });
+
+      if (payload.purchasePrice !== undefined) {
+        await createTransaction({
+          transactionType: "BUY",
+          assetType: payload.assetType,
+          symbol: payload.symbol,
+          quantity: payload.shares,
+          pricePerUnit: payload.purchasePrice,
+          currency: "USD",
+          purchasedAt: payload.purchaseDate
+            ? new Date(`${payload.purchaseDate}T00:00:00Z`).toISOString()
+            : new Date().toISOString(),
+        });
+      } else {
+        await createPortfolioItem({
+          assetType: payload.assetType,
+          symbol: payload.symbol,
+          quantity: payload.shares,
+        });
+      }
+
       await refreshItems();
 
       appendActivity(
@@ -106,6 +175,10 @@ function App() {
 
       if (currentHolding) {
         resultLines.push("The symbol remains a single active holding row.");
+      }
+
+      if (payload.purchasePrice !== undefined) {
+        resultLines.push("BUY transaction history was recorded in backend.");
       }
 
       return resultLines.join(" ");
@@ -187,6 +260,10 @@ function App() {
                 <Dashboard
                   holdings={holdings}
                   activities={activities}
+                  transactions={transactions}
+                  portfolioValue={portfolioValue}
+                  portfolioPerformance={portfolioPerformance}
+                  performanceBySymbol={performanceBySymbol}
                   isLoading={isLoading}
                   error={error}
                   onRetry={refreshItems}
@@ -201,6 +278,8 @@ function App() {
                 <Holdings
                   holdings={holdings}
                   activities={activities}
+                  transactions={transactions}
+                  performanceBySymbol={performanceBySymbol}
                   isLoading={isLoading}
                   error={error}
                   onRetry={refreshItems}
@@ -212,6 +291,8 @@ function App() {
               element={
                 <Performance
                   holdings={holdings}
+                  portfolioPerformance={portfolioPerformance}
+                  performanceBySymbol={performanceBySymbol}
                   isLoading={isLoading}
                   error={error}
                   onRetry={refreshItems}

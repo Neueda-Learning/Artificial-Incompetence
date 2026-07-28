@@ -1,13 +1,30 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { ActivityRecord, AggregatedHolding } from "../../types/portfolio";
+import {
+  ActivityRecord,
+  AggregatedHolding,
+  AssetPerformance,
+  PortfolioPerformance,
+  PortfolioValue,
+  Transaction,
+} from "../../types/portfolio";
 import HoldingsMetricsTable from "./HoldingsMetricsTable";
 import MarketIndicators from "./MarketIndicators";
-import { formatDate, formatNumber, formatUsd } from "../../utils/formatters";
+import {
+  formatDate,
+  formatNumber,
+  formatPercent,
+  formatSignedUsd,
+  formatUsd,
+} from "../../utils/formatters";
 
 interface DashboardProps {
   holdings: AggregatedHolding[];
   activities: ActivityRecord[];
+  transactions: Transaction[];
+  portfolioValue: PortfolioValue | null;
+  portfolioPerformance: PortfolioPerformance | null;
+  performanceBySymbol: Record<string, AssetPerformance>;
   isLoading: boolean;
   error: string | null;
   onRetry: () => void;
@@ -18,12 +35,40 @@ interface DashboardProps {
 function Dashboard({
   holdings,
   activities,
+  transactions,
+  portfolioValue,
+  portfolioPerformance,
+  performanceBySymbol,
   isLoading,
   error,
   onRetry,
   onAddAsset,
   onRemoveAsset,
 }: DashboardProps) {
+  const recentActivities = [
+    ...transactions.map((transaction) => ({
+      id: `tx-${transaction.id}`,
+      action: "Added",
+      symbol: transaction.symbol,
+      shares: transaction.quantity,
+      date: transaction.purchasedAt,
+      details: formatUsd(transaction.pricePerUnit),
+    })),
+    ...activities.map((record) => ({
+      id: `local-${record.id}`,
+      action: record.action === "ADDED" ? "Added" : "Removed",
+      symbol: record.symbol,
+      shares: record.shares,
+      date: record.date,
+      details:
+        record.remainingShares !== undefined
+          ? `Remaining shares: ${formatNumber(record.remainingShares, 4)}`
+          : null,
+    })),
+  ]
+    .sort((a, b) => +new Date(b.date) - +new Date(a.date))
+    .slice(0, 6);
+
   if (isLoading) {
     return (
       <section className="page">
@@ -56,7 +101,7 @@ function Dashboard({
     );
   }
 
-  if (holdings.length === 0 && activities.length === 0) {
+  if (holdings.length === 0 && activities.length === 0 && transactions.length === 0) {
     return (
       <section className="page">
         <div className="state-card">
@@ -77,7 +122,7 @@ function Dashboard({
     );
   }
 
-  if (holdings.length === 0 && activities.length > 0) {
+  if (holdings.length === 0 && (activities.length > 0 || transactions.length > 0)) {
     return (
       <section className="page">
         <div className="state-card">
@@ -116,16 +161,18 @@ function Dashboard({
       <div className="metrics-grid">
         <article className="metric-card">
           <h2>Total Portfolio Value</h2>
-          <p className="metric-value">—</p>
-          <p className="metric-subtle">
-            USD value unavailable from current backend endpoint.
+          <p className="metric-value">
+            {formatUsd(portfolioPerformance?.currentValue)}
           </p>
+          <p className="metric-subtle">Currency: {portfolioValue?.currency ?? "USD"}</p>
         </article>
         <article className="metric-card">
           <h2>Total Return</h2>
-          <p className="metric-value">—</p>
+          <p className="metric-value">
+            {formatPercent(portfolioPerformance?.returnPercentage)}
+          </p>
           <p className="metric-subtle">
-            Requires backend performance calculations.
+            {formatSignedUsd(portfolioPerformance?.unrealizedProfitLoss)}
           </p>
         </article>
         <article className="metric-card">
@@ -137,10 +184,8 @@ function Dashboard({
         </article>
         <article className="metric-card">
           <h2>Total Cost Basis</h2>
-          <p className="metric-value">—</p>
-          <p className="metric-subtle">
-            Per-share pricing is not provided by backend.
-          </p>
+          <p className="metric-value">{formatUsd(portfolioPerformance?.totalCost)}</p>
+          <p className="metric-subtle">Derived from BUY transactions</p>
         </article>
       </div>
 
@@ -154,7 +199,10 @@ function Dashboard({
               View all holdings
             </Link>
           </div>
-          <HoldingsMetricsTable holdings={holdings.slice(0, 5)} />
+          <HoldingsMetricsTable
+            holdings={holdings.slice(0, 5)}
+            performanceBySymbol={performanceBySymbol}
+          />
         </article>
 
         <article className="panel">
@@ -168,22 +216,18 @@ function Dashboard({
               Remove Asset
             </button>
           </div>
-          {activities.length === 0 ? (
+          {recentActivities.length === 0 ? (
             <p className="subtle-text">No activity recorded yet.</p>
           ) : (
             <ul className="activity-list">
-              {activities.slice(0, 6).map((record) => (
+              {recentActivities.map((record) => (
                 <li key={record.id} className="activity-item">
                   <p>
-                    {record.action === "ADDED" ? "Added" : "Removed"}{" "}
-                    {formatNumber(record.shares, 4)} shares of {record.symbol}
+                    {record.action} {formatNumber(record.shares, 4)} shares of{" "}
+                    {record.symbol}
                   </p>
                   <p className="subtle-text">{formatDate(record.date)}</p>
-                  {record.action === "REMOVED" && (
-                    <p className="subtle-text">
-                      Remaining shares: {record.remainingShares ?? 0}
-                    </p>
-                  )}
+                  {record.details && <p className="subtle-text">{record.details}</p>}
                 </li>
               ))}
             </ul>
@@ -191,18 +235,18 @@ function Dashboard({
         </article>
       </div>
 
-      <div className="banner banner-warning">
-        Some market prices are unavailable. Portfolio-level USD totals,
-        allocation, and performance remain unavailable until backend market-data
-        fields are provided.
-      </div>
+      {portfolioPerformance?.status === "PARTIAL" && (
+        <div className="banner banner-warning">
+          Some market prices are unavailable: {portfolioPerformance.missingPrices.join(", ")}.
+        </div>
+      )}
 
       <div className="summary-line">
         <p>Active symbols: {holdings.length}</p>
         <p>
           Total shares across active holdings: {formatNumber(totalShares, 4)}
         </p>
-        <p>Portfolio base currency: {formatUsd(undefined)}</p>
+        <p>Portfolio base currency: {portfolioValue?.currency ?? "USD"}</p>
       </div>
     </section>
   );

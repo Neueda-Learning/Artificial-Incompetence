@@ -1,11 +1,17 @@
 import React from "react";
 import { useState } from "react";
-import { AggregatedHolding } from "../../types/portfolio";
+import {
+  AggregatedHolding,
+  AssetPerformance as AssetPerformanceRow,
+  PortfolioPerformance,
+} from "../../types/portfolio";
 import AssetPerformance from "./AssetPerformance";
 import OverallPerformance from "./OverallPerformance";
 
 interface PerformanceProps {
   holdings: AggregatedHolding[];
+  portfolioPerformance: PortfolioPerformance | null;
+  performanceBySymbol: Record<string, AssetPerformanceRow>;
   isLoading: boolean;
   error: string | null;
   onRetry: () => void;
@@ -15,6 +21,8 @@ const RANGES = ["1M", "3M", "6M", "YTD", "1Y", "ALL"];
 
 function Performance({
   holdings,
+  portfolioPerformance,
+  performanceBySymbol,
   isLoading,
   error,
   onRetry,
@@ -72,8 +80,15 @@ function Performance({
         </div>
       </div>
 
-      <OverallPerformance holdings={holdings} selectedRange={selectedRange} />
-      <AssetPerformance holdings={holdings} />
+      <OverallPerformance
+        holdings={holdings}
+        selectedRange={selectedRange}
+        portfolioPerformance={portfolioPerformance}
+      />
+      <AssetPerformance
+        holdings={holdings}
+        performanceBySymbol={performanceBySymbol}
+      />
     </section>
   );
 }

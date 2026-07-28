@@ -18,13 +18,17 @@ case "$(uname)" in
       JAVACMD="java"
     fi
 
-    WRAPPER_JAR="$(cd "$(dirname "$0")" && pwd)/.mvn/wrapper/maven-wrapper.jar"
+    PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
+    WRAPPER_JAR="$PROJECT_DIR/.mvn/wrapper/maven-wrapper.jar"
 
     if [ ! -f "$WRAPPER_JAR" ]; then
       echo "Maven Wrapper JAR not found at $WRAPPER_JAR" >&2
       exit 1
     fi
 
-    exec "$JAVACMD" -jar "$WRAPPER_JAR" "$@"
+    exec "$JAVACMD" \
+      -Dmaven.multiModuleProjectDirectory="$PROJECT_DIR" \
+      -cp "$WRAPPER_JAR" \
+      org.apache.maven.wrapper.MavenWrapperMain "$@"
     ;;
 esac

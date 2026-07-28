@@ -18,6 +18,7 @@ FROM nginx:alpine
 
 # 将构建产物复制到 nginx 静态目录
 COPY --from=builder /app/build /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # 暴露 80 端口
 EXPOSE 80
