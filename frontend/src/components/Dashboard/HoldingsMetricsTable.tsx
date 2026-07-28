@@ -1,12 +1,16 @@
 import React from "react";
-import { AggregatedHolding } from "../../types/portfolio";
-import { formatNumber } from "../../utils/formatters";
+import { AggregatedHolding, AssetPerformance } from "../../types/portfolio";
+import { formatNumber, formatSignedUsd, formatUsd } from "../../utils/formatters";
 
 interface HoldingsMetricsTableProps {
   holdings: AggregatedHolding[];
+  performanceBySymbol: Record<string, AssetPerformance>;
 }
 
-function HoldingsMetricsTable({ holdings }: HoldingsMetricsTableProps) {
+function HoldingsMetricsTable({
+  holdings,
+  performanceBySymbol,
+}: HoldingsMetricsTableProps) {
   if (holdings.length === 0) {
     return <p className="subtle-text">No active holdings.</p>;
   }
@@ -29,8 +33,10 @@ function HoldingsMetricsTable({ holdings }: HoldingsMetricsTableProps) {
           </tr>
         </thead>
         <tbody>
-          {holdings.map((holding) => (
-            <tr key={holding.symbol}>
+          {holdings.map((holding) => {
+            const performance = performanceBySymbol[holding.symbol];
+            return (
+              <tr key={holding.symbol}>
               <td>
                 <p>{holding.symbol}</p>
                 <p className="subtle-text">{holding.assetType}</p>
@@ -38,10 +44,15 @@ function HoldingsMetricsTable({ holdings }: HoldingsMetricsTableProps) {
               <td className="numeric-cell financial-value">
                 {formatNumber(holding.quantity, 4)}
               </td>
-              <td className="numeric-cell financial-value">—</td>
-              <td className="numeric-cell financial-value">—</td>
-            </tr>
-          ))}
+              <td className="numeric-cell financial-value">
+                {formatUsd(performance?.currentValue)}
+              </td>
+              <td className="numeric-cell financial-value">
+                {formatSignedUsd(performance?.unrealizedProfitLoss)}
+              </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

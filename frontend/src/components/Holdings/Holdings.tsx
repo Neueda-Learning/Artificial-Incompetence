@@ -1,15 +1,23 @@
 import React from "react";
 import { useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
-import { ActivityRecord, AggregatedHolding } from "../../types/portfolio";
+import {
+  ActivityRecord,
+  AggregatedHolding,
+  AssetPerformance,
+  Transaction,
+} from "../../types/portfolio";
 import HoldingsPortfolio from "./HoldingsPortfolio";
 import PurchaseHistory from "./PurchaseHistory";
+import { formatPercent } from "../../utils/formatters";
 
 type HoldingsTab = "positions" | "allocation" | "history";
 
 interface HoldingsProps {
   holdings: AggregatedHolding[];
   activities: ActivityRecord[];
+  transactions: Transaction[];
+  performanceBySymbol: Record<string, AssetPerformance>;
   isLoading: boolean;
   error: string | null;
   onRetry: () => void;
@@ -18,6 +26,8 @@ interface HoldingsProps {
 function Holdings({
   holdings,
   activities,
+  transactions,
+  performanceBySymbol,
   isLoading,
   error,
   onRetry,
@@ -96,19 +106,41 @@ function Holdings({
         </button>
       </div>
 
-      {currentTab === "positions" && <HoldingsPortfolio holdings={holdings} />}
+      {currentTab === "positions" && (
+        <HoldingsPortfolio
+          holdings={holdings}
+          performanceBySymbol={performanceBySymbol}
+        />
+      )}
 
       {currentTab === "allocation" && (
         <article className="panel">
           <h3>Allocation</h3>
+          {holdings.length === 0 ? (
+            <p className="subtle-text">No active positions.</p>
+          ) : (
+            <ul className="allocation-list">
+              {holdings.map((holding) => (
+                <li key={holding.symbol} className="allocation-row">
+                  <span>{holding.symbol}</span>
+                  <span>
+                    {formatPercent(
+                      performanceBySymbol[holding.symbol]?.allocationPercentage,
+                    )}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
           <p className="subtle-text">
-            Allocation by USD market value is unavailable because current
-            backend responses do not include USD-converted position values.
+            Allocation values come from backend performance calculations.
           </p>
         </article>
       )}
 
-      {currentTab === "history" && <PurchaseHistory activities={activities} />}
+      {currentTab === "history" && (
+        <PurchaseHistory activities={activities} transactions={transactions} />
+      )}
     </section>
   );
 }

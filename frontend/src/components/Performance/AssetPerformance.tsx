@@ -1,12 +1,20 @@
 import React from "react";
-import { AggregatedHolding } from "../../types/portfolio";
-import { formatNumber } from "../../utils/formatters";
+import { AggregatedHolding, AssetPerformance as AssetPerformanceRow } from "../../types/portfolio";
+import {
+  formatNumber,
+  formatSignedUsd,
+  formatUsd,
+} from "../../utils/formatters";
 
 interface AssetPerformanceProps {
   holdings: AggregatedHolding[];
+  performanceBySymbol: Record<string, AssetPerformanceRow>;
 }
 
-function AssetPerformance({ holdings }: AssetPerformanceProps) {
+function AssetPerformance({
+  holdings,
+  performanceBySymbol,
+}: AssetPerformanceProps) {
   return (
     <article className="panel">
       <h3>Asset Performance</h3>
@@ -33,24 +41,33 @@ function AssetPerformance({ holdings }: AssetPerformanceProps) {
               </tr>
             </thead>
             <tbody>
-              {holdings.map((holding) => (
+              {holdings.map((holding) => {
+                const performance = performanceBySymbol[holding.symbol];
+                return (
                 <tr key={holding.symbol}>
                   <td>{holding.symbol}</td>
                   <td className="numeric-cell financial-value">
                     {formatNumber(holding.quantity, 4)}
                   </td>
-                  <td className="numeric-cell financial-value">—</td>
-                  <td className="numeric-cell financial-value">—</td>
-                  <td className="numeric-cell financial-value">—</td>
+                  <td className="numeric-cell financial-value">
+                    {formatUsd(performance?.currentPrice)}
+                  </td>
+                  <td className="numeric-cell financial-value">
+                    {formatUsd(performance?.currentValue)}
+                  </td>
+                  <td className="numeric-cell financial-value">
+                    {formatSignedUsd(performance?.unrealizedProfitLoss)}
+                  </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
       )}
       <p className="subtle-text">
-        Native quote currencies, USD conversion, and P/L require backend market
-        and valuation endpoints that are not yet exposed.
+        Metrics above come from backend performance endpoint and are normalized
+        to USD where available.
       </p>
     </article>
   );

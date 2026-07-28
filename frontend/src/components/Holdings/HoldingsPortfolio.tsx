@@ -1,15 +1,24 @@
 import React from "react";
 import { useMemo, useState } from "react";
-import { AggregatedHolding } from "../../types/portfolio";
-import { formatNumber } from "../../utils/formatters";
+import { AggregatedHolding, AssetPerformance } from "../../types/portfolio";
+import {
+  formatNumber,
+  formatPercent,
+  formatSignedUsd,
+  formatUsd,
+} from "../../utils/formatters";
 
 type SortKey = "symbol" | "shares";
 
 interface HoldingsPortfolioProps {
   holdings: AggregatedHolding[];
+  performanceBySymbol: Record<string, AssetPerformance>;
 }
 
-function HoldingsPortfolio({ holdings }: HoldingsPortfolioProps) {
+function HoldingsPortfolio({
+  holdings,
+  performanceBySymbol,
+}: HoldingsPortfolioProps) {
   const [searchText, setSearchText] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("shares");
   const [isDesc, setIsDesc] = useState(true);
@@ -101,7 +110,9 @@ function HoldingsPortfolio({ holdings }: HoldingsPortfolioProps) {
             </tr>
           </thead>
           <tbody>
-            {filteredRows.map((holding) => (
+            {filteredRows.map((holding) => {
+              const performance = performanceBySymbol[holding.symbol];
+              return (
               <tr key={holding.symbol}>
                 <td>
                   <p>{holding.symbol}</p>
@@ -110,19 +121,29 @@ function HoldingsPortfolio({ holdings }: HoldingsPortfolioProps) {
                 <td className="numeric-cell financial-value">
                   {formatNumber(holding.quantity, 4)}
                 </td>
-                <td className="numeric-cell financial-value">—</td>
-                <td className="numeric-cell financial-value">—</td>
-                <td className="numeric-cell financial-value">—</td>
-                <td className="numeric-cell financial-value">—</td>
-                <td className="numeric-cell financial-value">—</td>
+                <td className="numeric-cell financial-value">
+                  {formatUsd(performance?.currentPrice)}
+                </td>
+                <td className="numeric-cell financial-value">
+                  {formatUsd(performance?.averageCost)}
+                </td>
+                <td className="numeric-cell financial-value">
+                  {formatUsd(performance?.currentValue)}
+                </td>
+                <td className="numeric-cell financial-value">
+                  {formatSignedUsd(performance?.unrealizedProfitLoss)}
+                </td>
+                <td className="numeric-cell financial-value">
+                  {formatPercent(performance?.allocationPercentage)}
+                </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>
       <p className="subtle-text">
-        Native price currency labels and USD valuation columns are shown as
-        unavailable until backend market-value fields are exposed.
+        Values above are sourced from backend valuation and performance APIs.
       </p>
     </article>
   );
