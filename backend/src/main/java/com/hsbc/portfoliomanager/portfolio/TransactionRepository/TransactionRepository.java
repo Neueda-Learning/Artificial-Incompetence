@@ -10,4 +10,9 @@ interface TransactionRepository extends JpaRepository<TransactionRecord, Long> {
      * English: Queries transactions by type in descending transaction time order for newest-first history.
      */
     List<TransactionRecord> findByTransactionTypeOrderByTransactedAtDesc(TransactionType transactionType);
+
+    /**
+     * Returns the complete ledger in chronological order for historical portfolio reconstruction.
+     */
+    List<TransactionRecord> findAllByOrderByTransactedAtAsc();
 }

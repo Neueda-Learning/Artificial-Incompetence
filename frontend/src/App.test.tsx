@@ -2,10 +2,36 @@ import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import App from "./App";
 import * as portfolioService from "./services/portfolioService";
+import {
+  HistoricalPerformance,
+  PortfolioPerformance,
+} from "./types/portfolio";
 
 jest.mock("./services/portfolioService");
 
 const mockedService = portfolioService as jest.Mocked<typeof portfolioService>;
+
+const emptyPerformance: PortfolioPerformance = {
+  currency: "USD",
+  totalCost: 0,
+  currentValue: 0,
+  unrealizedProfitLoss: 0,
+  returnPercentage: 0,
+  status: "COMPLETE",
+  priceUpdatedAt: null,
+  assets: [],
+  missingPrices: [],
+};
+
+const emptyHistory: HistoricalPerformance = {
+  currency: "USD",
+  range: "1M",
+  startDate: "2026-06-28",
+  endDate: "2026-07-28",
+  status: "UNAVAILABLE",
+  points: [],
+  missingData: [],
+};
 
 describe("Portfolio Manager frontend", () => {
   beforeEach(() => {
@@ -13,6 +39,8 @@ describe("Portfolio Manager frontend", () => {
     window.localStorage.clear();
     jest.clearAllMocks();
     mockedService.getPortfolioItems.mockResolvedValue([]);
+    mockedService.getPortfolioPerformance.mockResolvedValue(emptyPerformance);
+    mockedService.getHistoricalPerformance.mockResolvedValue(emptyHistory);
     mockedService.createPortfolioItem.mockResolvedValue({
       id: 1,
       assetType: "STOCK",
@@ -160,5 +188,40 @@ describe("Portfolio Manager frontend", () => {
     fireEvent.click(screen.getByRole("link", { name: "Holdings" }));
     expect(await screen.findByText("Current Price")).toBeInTheDocument();
     expect(screen.getByText("Avg. Cost")).toBeInTheDocument();
+  });
+
+  it("renders backend performance values in holdings", async () => {
+    mockedService.getPortfolioItems.mockResolvedValueOnce([
+      { id: 40, assetType: "STOCK", symbol: "MSFT", quantity: 10 },
+    ]);
+    mockedService.getPortfolioPerformance.mockResolvedValueOnce({
+      ...emptyPerformance,
+      totalCost: 4000,
+      currentValue: 3891,
+      unrealizedProfitLoss: -109,
+      returnPercentage: -2.725,
+      assets: [
+        {
+          symbol: "MSFT",
+          quantity: 10,
+          averageCost: 400,
+          currentPrice: 389.1,
+          costBasis: 4000,
+          currentValue: 3891,
+          unrealizedProfitLoss: -109,
+          returnPercentage: -2.725,
+          allocationPercentage: 100,
+        },
+      ],
+    });
+
+    render(<App />);
+    await screen.findByText("Top Holdings");
+    fireEvent.click(screen.getByRole("link", { name: "Holdings" }));
+
+    expect(await screen.findByText("USD 389.10")).toBeInTheDocument();
+    expect(screen.getByText("USD 400.00")).toBeInTheDocument();
+    expect(screen.getByText("USD 3,891.00")).toBeInTheDocument();
+    expect(screen.getByText("−USD 109.00")).toBeInTheDocument();
   });
 });

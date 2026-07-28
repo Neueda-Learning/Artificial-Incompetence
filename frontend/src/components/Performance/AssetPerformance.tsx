@@ -1,12 +1,24 @@
 import React from "react";
-import { AggregatedHolding } from "../../types/portfolio";
-import { formatNumber } from "../../utils/formatters";
+import {
+  AggregatedHolding,
+  PortfolioPerformance,
+} from "../../types/portfolio";
+import {
+  formatNumber,
+  formatPercent,
+  formatSignedUsd,
+  formatUsd,
+} from "../../utils/formatters";
 
 interface AssetPerformanceProps {
   holdings: AggregatedHolding[];
+  performance: PortfolioPerformance | null;
 }
 
-function AssetPerformance({ holdings }: AssetPerformanceProps) {
+function AssetPerformance({
+  holdings,
+  performance,
+}: AssetPerformanceProps) {
   return (
     <article className="panel">
       <h3>Asset Performance</h3>
@@ -25,6 +37,9 @@ function AssetPerformance({ holdings }: AssetPerformanceProps) {
                   Current Price
                 </th>
                 <th scope="col" className="numeric-cell">
+                  Avg. Cost
+                </th>
+                <th scope="col" className="numeric-cell">
                   Market Value (USD)
                 </th>
                 <th scope="col" className="numeric-cell">
@@ -33,25 +48,53 @@ function AssetPerformance({ holdings }: AssetPerformanceProps) {
               </tr>
             </thead>
             <tbody>
-              {holdings.map((holding) => (
-                <tr key={holding.symbol}>
-                  <td>{holding.symbol}</td>
-                  <td className="numeric-cell financial-value">
-                    {formatNumber(holding.quantity, 4)}
-                  </td>
-                  <td className="numeric-cell financial-value">—</td>
-                  <td className="numeric-cell financial-value">—</td>
-                  <td className="numeric-cell financial-value">—</td>
-                </tr>
-              ))}
+              {holdings.map((holding) => {
+                const asset = performance?.assets.find(
+                  (candidate) => candidate.symbol === holding.symbol,
+                );
+                const valueClass =
+                  asset?.unrealizedProfitLoss == null
+                    ? ""
+                    : asset.unrealizedProfitLoss >= 0
+                      ? "value-positive"
+                      : "value-negative";
+                return (
+                  <tr key={holding.symbol}>
+                    <td>{holding.symbol}</td>
+                    <td className="numeric-cell financial-value">
+                      {formatNumber(holding.quantity, 4)}
+                    </td>
+                    <td className="numeric-cell financial-value">
+                      {formatUsd(asset?.currentPrice)}
+                    </td>
+                    <td className="numeric-cell financial-value">
+                      {formatUsd(asset?.averageCost)}
+                    </td>
+                    <td className="numeric-cell financial-value">
+                      {formatUsd(asset?.currentValue)}
+                    </td>
+                    <td
+                      className={`numeric-cell financial-value ${valueClass}`}
+                    >
+                      {formatSignedUsd(asset?.unrealizedProfitLoss)}
+                      {asset?.returnPercentage != null && (
+                        <span className="value-detail">
+                          {formatPercent(asset.returnPercentage)}
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
       )}
-      <p className="subtle-text">
-        Native quote currencies, USD conversion, and P/L require backend market
-        and valuation endpoints that are not yet exposed.
-      </p>
+      {performance?.status === "PARTIAL" && (
+        <p className="subtle-text">
+          Missing current prices: {performance.missingPrices.join(", ")}.
+        </p>
+      )}
     </article>
   );
 }

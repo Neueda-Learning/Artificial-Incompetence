@@ -11,9 +11,14 @@ import org.springframework.web.bind.annotation.RestController;
 class AnalyticsController {
 
     private final AnalyticsService analyticsService;
+    private final HistoricalPerformanceService historicalPerformanceService;
 
-    AnalyticsController(AnalyticsService analyticsService) {
+    AnalyticsController(
+            AnalyticsService analyticsService,
+            HistoricalPerformanceService historicalPerformanceService
+    ) {
         this.analyticsService = analyticsService;
+        this.historicalPerformanceService = historicalPerformanceService;
     }
 
     @GetMapping("/value")
@@ -26,5 +31,13 @@ class AnalyticsController {
     @ResponseStatus(HttpStatus.OK)
     PortfolioPerformanceResponse getPerformance() {
         return analyticsService.calculatePerformance();
+    }
+
+    @GetMapping("/performance/history")
+    @ResponseStatus(HttpStatus.OK)
+    HistoricalPerformanceResponse getHistoricalPerformance(
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "1M") String range
+    ) {
+        return historicalPerformanceService.calculate(range);
     }
 }

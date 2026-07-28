@@ -1,7 +1,11 @@
 import React from "react";
 import { useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
-import { ActivityRecord, AggregatedHolding } from "../../types/portfolio";
+import {
+  ActivityRecord,
+  AggregatedHolding,
+  PortfolioPerformance,
+} from "../../types/portfolio";
 import HoldingsPortfolio from "./HoldingsPortfolio";
 import PurchaseHistory from "./PurchaseHistory";
 
@@ -10,16 +14,22 @@ type HoldingsTab = "positions" | "allocation" | "history";
 interface HoldingsProps {
   holdings: AggregatedHolding[];
   activities: ActivityRecord[];
+  performance: PortfolioPerformance | null;
   isLoading: boolean;
+  isPerformanceLoading: boolean;
   error: string | null;
+  performanceError: string | null;
   onRetry: () => void;
 }
 
 function Holdings({
   holdings,
   activities,
+  performance,
   isLoading,
+  isPerformanceLoading,
   error,
+  performanceError,
   onRetry,
 }: HoldingsProps) {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -96,15 +106,49 @@ function Holdings({
         </button>
       </div>
 
-      {currentTab === "positions" && <HoldingsPortfolio holdings={holdings} />}
+      {performanceError && (
+        <div className="banner banner-warning">{performanceError}</div>
+      )}
+
+      {currentTab === "positions" &&
+        (isPerformanceLoading ? (
+          <div className="skeleton-panel" />
+        ) : (
+          <HoldingsPortfolio
+            holdings={holdings}
+            performance={performance}
+          />
+        ))}
 
       {currentTab === "allocation" && (
         <article className="panel">
           <h3>Allocation</h3>
-          <p className="subtle-text">
-            Allocation by USD market value is unavailable because current
-            backend responses do not include USD-converted position values.
-          </p>
+          {performance?.assets.length ? (
+            <ul className="allocation-list">
+              {performance.assets.map((asset) => (
+                <li key={asset.symbol}>
+                  <div className="allocation-row">
+                    <span>{asset.symbol}</span>
+                    <span>
+                      {asset.allocationPercentage == null
+                        ? "—"
+                        : `${asset.allocationPercentage.toFixed(2)}%`}
+                    </span>
+                  </div>
+                  <div className="allocation-track" aria-hidden="true">
+                    <div
+                      className="allocation-fill"
+                      style={{
+                        width: `${Math.max(0, asset.allocationPercentage ?? 0)}%`,
+                      }}
+                    />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="subtle-text">Allocation data is unavailable.</p>
+          )}
         </article>
       )}
 

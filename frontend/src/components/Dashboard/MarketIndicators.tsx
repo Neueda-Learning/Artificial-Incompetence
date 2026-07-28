@@ -1,30 +1,30 @@
 import React from "react";
-import { AggregatedHolding } from "../../types/portfolio";
-import { formatNumber } from "../../utils/formatters";
+import {
+  AggregatedHolding,
+  PortfolioPerformance,
+} from "../../types/portfolio";
+import { formatNumber, formatUsd } from "../../utils/formatters";
 
 interface MarketIndicatorsProps {
   holdings: AggregatedHolding[];
+  performance: PortfolioPerformance | null;
 }
 
-function MarketIndicators({ holdings }: MarketIndicatorsProps) {
-  const totalShares = holdings.reduce(
-    (total, holding) => total + holding.quantity,
-    0,
-  );
-
+function MarketIndicators({
+  holdings,
+  performance,
+}: MarketIndicatorsProps) {
   return (
     <section className="two-column-layout">
       <article className="panel panel-large">
         <h2>Portfolio Performance</h2>
-        <div
-          className="chart-placeholder"
-          role="img"
-          aria-label="Performance chart unavailable"
-        >
-          <p>USD performance time series is unavailable.</p>
+        <div className="dashboard-performance-summary">
+          <p className="metric-value">
+            {formatUsd(performance?.currentValue)}
+          </p>
           <p className="subtle-text">
-            The current backend contract does not provide historical portfolio
-            values.
+            Current portfolio value · Open Performance for the historical
+            series.
           </p>
         </div>
       </article>
@@ -35,8 +35,10 @@ function MarketIndicators({ holdings }: MarketIndicatorsProps) {
         ) : (
           <ul className="allocation-list">
             {holdings.slice(0, 6).map((holding) => {
-              const ratio =
-                totalShares > 0 ? (holding.quantity / totalShares) * 100 : 0;
+              const asset = performance?.assets.find(
+                (candidate) => candidate.symbol === holding.symbol,
+              );
+              const ratio = asset?.allocationPercentage ?? 0;
               return (
                 <li key={holding.symbol}>
                   <div className="allocation-row">
@@ -50,18 +52,19 @@ function MarketIndicators({ holdings }: MarketIndicatorsProps) {
                     />
                   </div>
                   <p className="subtle-text">
-                    {formatNumber(holding.quantity, 4)} shares · USD market
-                    value unavailable
+                    {formatNumber(holding.quantity, 4)} shares ·{" "}
+                    {formatUsd(asset?.currentValue)}
                   </p>
                 </li>
               );
             })}
           </ul>
         )}
-        <p className="subtle-text">
-          Allocation percentages above are share-based placeholders until
-          backend USD market values are available.
-        </p>
+        {performance?.status === "PARTIAL" && (
+          <p className="subtle-text">
+            Allocation excludes assets without a current price.
+          </p>
+        )}
       </article>
     </section>
   );

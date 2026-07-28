@@ -1,15 +1,28 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { ActivityRecord, AggregatedHolding } from "../../types/portfolio";
+import {
+  ActivityRecord,
+  AggregatedHolding,
+  PortfolioPerformance,
+} from "../../types/portfolio";
 import HoldingsMetricsTable from "./HoldingsMetricsTable";
 import MarketIndicators from "./MarketIndicators";
-import { formatDate, formatNumber, formatUsd } from "../../utils/formatters";
+import {
+  formatDate,
+  formatNumber,
+  formatPercent,
+  formatSignedUsd,
+  formatUsd,
+} from "../../utils/formatters";
 
 interface DashboardProps {
   holdings: AggregatedHolding[];
   activities: ActivityRecord[];
+  performance: PortfolioPerformance | null;
   isLoading: boolean;
+  isPerformanceLoading: boolean;
   error: string | null;
+  performanceError: string | null;
   onRetry: () => void;
   onAddAsset: () => void;
   onRemoveAsset: () => void;
@@ -18,13 +31,16 @@ interface DashboardProps {
 function Dashboard({
   holdings,
   activities,
+  performance,
   isLoading,
+  isPerformanceLoading,
   error,
+  performanceError,
   onRetry,
   onAddAsset,
   onRemoveAsset,
 }: DashboardProps) {
-  if (isLoading) {
+  if (isLoading || isPerformanceLoading) {
     return (
       <section className="page">
         <div className="skeleton-grid">
@@ -116,35 +132,48 @@ function Dashboard({
       <div className="metrics-grid">
         <article className="metric-card">
           <h2>Total Portfolio Value</h2>
-          <p className="metric-value">—</p>
+          <p className="metric-value">{formatUsd(performance?.currentValue)}</p>
           <p className="metric-subtle">
-            USD value unavailable from current backend endpoint.
+            Current value in {performance?.currency ?? "USD"}.
           </p>
         </article>
         <article className="metric-card">
           <h2>Total Return</h2>
-          <p className="metric-value">—</p>
+          <p
+            className={`metric-value ${
+              (performance?.returnPercentage ?? 0) >= 0
+                ? "value-positive"
+                : "value-negative"
+            }`}
+          >
+            {formatPercent(performance?.returnPercentage)}
+          </p>
           <p className="metric-subtle">
-            Requires backend performance calculations.
+            Since recorded purchases.
           </p>
         </article>
         <article className="metric-card">
           <h2>Day Change</h2>
           <p className="metric-value">—</p>
           <p className="metric-subtle">
-            Requires market-price feed and timestamps.
+            Intraday change is not supplied by the backend.
           </p>
         </article>
         <article className="metric-card">
           <h2>Total Cost Basis</h2>
-          <p className="metric-value">—</p>
+          <p className="metric-value">{formatUsd(performance?.totalCost)}</p>
           <p className="metric-subtle">
-            Per-share pricing is not provided by backend.
+            Unrealized P/L:{" "}
+            {formatSignedUsd(performance?.unrealizedProfitLoss)}
           </p>
         </article>
       </div>
 
-      <MarketIndicators holdings={holdings} />
+      {performanceError && (
+        <div className="banner banner-warning">{performanceError}</div>
+      )}
+
+      <MarketIndicators holdings={holdings} performance={performance} />
 
       <div className="two-column-layout">
         <article className="panel">
@@ -154,7 +183,10 @@ function Dashboard({
               View all holdings
             </Link>
           </div>
-          <HoldingsMetricsTable holdings={holdings.slice(0, 5)} />
+          <HoldingsMetricsTable
+            holdings={holdings.slice(0, 5)}
+            performance={performance}
+          />
         </article>
 
         <article className="panel">
@@ -191,11 +223,11 @@ function Dashboard({
         </article>
       </div>
 
-      <div className="banner banner-warning">
-        Some market prices are unavailable. Portfolio-level USD totals,
-        allocation, and performance remain unavailable until backend market-data
-        fields are provided.
-      </div>
+      {performance?.status === "PARTIAL" && (
+        <div className="banner banner-warning">
+          Some prices are unavailable: {performance.missingPrices.join(", ")}.
+        </div>
+      )}
 
       <div className="summary-line">
         <p>Active symbols: {holdings.length}</p>

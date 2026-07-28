@@ -1,5 +1,13 @@
 import api from "./api";
-import { CreatePortfolioItemRequest, PortfolioItem } from "../types/portfolio";
+import {
+  AssetPerformance,
+  CreatePortfolioItemRequest,
+  HistoricalPerformance,
+  HistoricalPerformancePoint,
+  PerformanceRange,
+  PortfolioItem,
+  PortfolioPerformance,
+} from "../types/portfolio";
 
 const USE_MOCK_DATA = process.env.REACT_APP_USE_MOCK_DATA === "true";
 const MOCK_ITEMS_STORAGE_KEY = "portfolio-manager-mock-items-v1";
@@ -12,12 +20,88 @@ interface RawPortfolioItem {
   quantity: number | string;
 }
 
+type NullableNumeric = number | string | null;
+
+interface RawAssetPerformance {
+  symbol: string;
+  quantity: number | string;
+  averageCost: NullableNumeric;
+  currentPrice: NullableNumeric;
+  costBasis: number | string;
+  currentValue: NullableNumeric;
+  unrealizedProfitLoss: NullableNumeric;
+  returnPercentage: NullableNumeric;
+  allocationPercentage: NullableNumeric;
+}
+
+interface RawPortfolioPerformance {
+  currency: string;
+  totalCost: number | string;
+  currentValue: number | string;
+  unrealizedProfitLoss: number | string;
+  returnPercentage: number | string;
+  status: PortfolioPerformance["status"];
+  priceUpdatedAt: string | null;
+  assets: RawAssetPerformance[];
+  missingPrices: string[];
+}
+
+interface RawHistoricalPerformancePoint {
+  date: string;
+  marketValue: NullableNumeric;
+  costBasis: NullableNumeric;
+  profitLoss: NullableNumeric;
+  returnPercentage: NullableNumeric;
+}
+
+interface RawHistoricalPerformance {
+  currency: string;
+  range: PerformanceRange;
+  startDate: string;
+  endDate: string;
+  status: HistoricalPerformance["status"];
+  points: RawHistoricalPerformancePoint[];
+  missingData: string[];
+}
+
+function nullableNumber(value: NullableNumeric): number | null {
+  return value === null ? null : Number(value);
+}
+
 function normalizeItem(item: RawPortfolioItem): PortfolioItem {
   return {
     id: item.id,
     assetType: item.assetType,
     symbol: item.symbol,
     quantity: Number(item.quantity),
+  };
+}
+
+function normalizeAssetPerformance(
+  asset: RawAssetPerformance,
+): AssetPerformance {
+  return {
+    symbol: asset.symbol,
+    quantity: Number(asset.quantity),
+    averageCost: nullableNumber(asset.averageCost),
+    currentPrice: nullableNumber(asset.currentPrice),
+    costBasis: Number(asset.costBasis),
+    currentValue: nullableNumber(asset.currentValue),
+    unrealizedProfitLoss: nullableNumber(asset.unrealizedProfitLoss),
+    returnPercentage: nullableNumber(asset.returnPercentage),
+    allocationPercentage: nullableNumber(asset.allocationPercentage),
+  };
+}
+
+function normalizeHistoricalPoint(
+  point: RawHistoricalPerformancePoint,
+): HistoricalPerformancePoint {
+  return {
+    date: point.date,
+    marketValue: nullableNumber(point.marketValue),
+    costBasis: nullableNumber(point.costBasis),
+    profitLoss: nullableNumber(point.profitLoss),
+    returnPercentage: nullableNumber(point.returnPercentage),
   };
 }
 
@@ -115,4 +199,40 @@ export async function deletePortfolioItem(id: number): Promise<void> {
   }
 
   await api.delete(`/portfolio/items/${id}`);
+}
+
+export async function getPortfolioPerformance(): Promise<PortfolioPerformance> {
+  const response = await api.get("/portfolio/performance");
+  const raw = response.data as RawPortfolioPerformance;
+
+  return {
+    currency: raw.currency,
+    totalCost: Number(raw.totalCost),
+    currentValue: Number(raw.currentValue),
+    unrealizedProfitLoss: Number(raw.unrealizedProfitLoss),
+    returnPercentage: Number(raw.returnPercentage),
+    status: raw.status,
+    priceUpdatedAt: raw.priceUpdatedAt,
+    assets: raw.assets.map(normalizeAssetPerformance),
+    missingPrices: raw.missingPrices,
+  };
+}
+
+export async function getHistoricalPerformance(
+  range: PerformanceRange,
+): Promise<HistoricalPerformance> {
+  const response = await api.get("/portfolio/performance/history", {
+    params: { range },
+  });
+  const raw = response.data as RawHistoricalPerformance;
+
+  return {
+    currency: raw.currency,
+    range: raw.range,
+    startDate: raw.startDate,
+    endDate: raw.endDate,
+    status: raw.status,
+    points: raw.points.map(normalizeHistoricalPoint),
+    missingData: raw.missingData,
+  };
 }

@@ -2,6 +2,8 @@ package com.hsbc.portfoliomanager.portfolio;
 
 import com.hsbc.portfoliomanager.marketdata.MarketDataService;
 import com.hsbc.portfoliomanager.marketdata.MarketDataService.PriceData;
+import com.hsbc.portfoliomanager.marketdata.HistoricalMarketDataService;
+import com.hsbc.portfoliomanager.marketdata.HistoricalMarketDataService.PricePoint;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -17,9 +19,15 @@ import org.springframework.web.context.WebApplicationContext;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.util.List;
+import java.util.Optional;
 
 import static org.hamcrest.Matchers.hasSize;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -43,6 +51,9 @@ class AnalyticsControllerIntegrationTest {
 
     @MockitoBean
     private MarketDataService marketDataService;
+
+    @MockitoBean
+    private HistoricalMarketDataService historicalMarketDataService;
 
     @BeforeEach
     void setUp() {
@@ -172,6 +183,70 @@ class AnalyticsControllerIntegrationTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("PARTIAL"))
                     .andExpect(jsonPath("$.missingPrices[0]").value("MSFT"));
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /api/portfolio/performance/history")
+    class HistoricalPortfolioPerformance {
+
+        @Test
+        @DisplayName("returns historical value, cost basis, P&L and return")
+        void returnsHistoricalPerformance() throws Exception {
+            LocalDate today = LocalDate.now(ZoneOffset.UTC);
+            portfolioItemRepository.save(new PortfolioItem(
+                    AssetType.STOCK,
+                    "AAPL",
+                    "Apple Inc.",
+                    "NASDAQ",
+                    new BigDecimal("10"),
+                    "USD"
+            ));
+            transactionRepository.save(new TransactionRecord(
+                    TransactionType.BUY,
+                    AssetType.STOCK,
+                    "AAPL",
+                    new BigDecimal("10"),
+                    new BigDecimal("180.00"),
+                    "USD",
+                    today.minusDays(2).atStartOfDay().toInstant(ZoneOffset.UTC)
+            ));
+
+            when(historicalMarketDataService.getDailyPrices(
+                    eq(AssetType.STOCK),
+                    eq("AAPL"),
+                    eq("NASDAQ"),
+                    eq("USD"),
+                    any(LocalDate.class),
+                    any(LocalDate.class)
+            )).thenReturn(List.of(
+                    new PricePoint("AAPL", "USD", today.minusDays(1), new BigDecimal("195.00"))
+            ));
+            when(historicalMarketDataService.getRateToUsd(eq("USD"), any(LocalDate.class)))
+                    .thenReturn(Optional.of(BigDecimal.ONE));
+
+            mockMvc.perform(get("/api/portfolio/performance/history")
+                            .param("range", "1W")
+                            .accept(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("COMPLETE"))
+                    .andExpect(jsonPath("$.currency").value("USD"))
+                    .andExpect(jsonPath("$.range").value("1W"))
+                    .andExpect(jsonPath("$.points", hasSize(1)))
+                    .andExpect(jsonPath("$.points[0].marketValue").value(1950.00))
+                    .andExpect(jsonPath("$.points[0].costBasis").value(1800.00))
+                    .andExpect(jsonPath("$.points[0].profitLoss").value(150.00))
+                    .andExpect(jsonPath("$.points[0].returnPercentage").value(8.3333))
+                    .andExpect(jsonPath("$.missingData").isEmpty());
+        }
+
+        @Test
+        @DisplayName("rejects unsupported ranges")
+        void rejectsUnsupportedRange() throws Exception {
+            mockMvc.perform(get("/api/portfolio/performance/history")
+                            .param("range", "2Y")
+                            .accept(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isBadRequest());
         }
     }
 }

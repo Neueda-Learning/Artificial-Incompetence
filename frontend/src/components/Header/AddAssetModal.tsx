@@ -175,7 +175,7 @@ function AddAssetModal({
             />
           </label>
           <label>
-            Purchase price per share (optional)
+            Purchase price per share
             <input
               name="purchasePrice"
               type="number"

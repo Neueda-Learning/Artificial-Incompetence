@@ -14,11 +14,13 @@ import {
   createPortfolioItem,
   deletePortfolioItem,
   getPortfolioItems,
+  getPortfolioPerformance,
 } from "./services/portfolioService";
 import {
   ActivityRecord,
   AggregatedHolding,
   PortfolioItem,
+  PortfolioPerformance,
 } from "./types/portfolio";
 import {
   aggregateHoldings,
@@ -33,6 +35,10 @@ function App() {
   const [items, setItems] = useState<PortfolioItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [performance, setPerformance] =
+    useState<PortfolioPerformance | null>(null);
+  const [isPerformanceLoading, setIsPerformanceLoading] = useState(true);
+  const [performanceError, setPerformanceError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isRemoveOpen, setIsRemoveOpen] = useState(false);
@@ -54,9 +60,31 @@ function App() {
     }
   }, []);
 
+  const refreshPerformance = useCallback(async () => {
+    setIsPerformanceLoading(true);
+    setPerformanceError(null);
+    try {
+      const response = await getPortfolioPerformance();
+      setPerformance(response);
+      if (response.priceUpdatedAt) {
+        setLastUpdated(response.priceUpdatedAt);
+      }
+    } catch (requestError) {
+      setPerformanceError(
+        "Unable to load current prices and performance. Please retry.",
+      );
+    } finally {
+      setIsPerformanceLoading(false);
+    }
+  }, []);
+
+  const refreshAll = useCallback(async () => {
+    await Promise.all([refreshItems(), refreshPerformance()]);
+  }, [refreshItems, refreshPerformance]);
+
   useEffect(() => {
-    void refreshItems();
-  }, [refreshItems]);
+    void refreshAll();
+  }, [refreshAll]);
 
   useEffect(() => {
     persistActivities(activities);
@@ -83,7 +111,7 @@ function App() {
         symbol: payload.symbol,
         quantity: payload.shares,
       });
-      await refreshItems();
+      await refreshAll();
 
       appendActivity(
         createActivityRecord({
@@ -110,7 +138,7 @@ function App() {
 
       return resultLines.join(" ");
     },
-    [appendActivity, holdings, refreshItems],
+    [appendActivity, holdings, refreshAll],
   );
 
   const handleRemoveAsset = useCallback(
@@ -140,7 +168,7 @@ function App() {
         });
       }
 
-      await refreshItems();
+      await refreshAll();
 
       appendActivity(
         createActivityRecord({
@@ -157,7 +185,7 @@ function App() {
 
       return `Removed ${payload.shares.toLocaleString()} shares of ${payload.symbol}. Remaining shares: 0. ${payload.symbol} was removed from current holdings. History remains available.`;
     },
-    [appendActivity, holdings, refreshItems],
+    [appendActivity, holdings, refreshAll],
   );
 
   const staleWarning = useMemo(() => {
@@ -187,9 +215,12 @@ function App() {
                 <Dashboard
                   holdings={holdings}
                   activities={activities}
+                  performance={performance}
                   isLoading={isLoading}
+                  isPerformanceLoading={isPerformanceLoading}
                   error={error}
-                  onRetry={refreshItems}
+                  performanceError={performanceError}
+                  onRetry={refreshAll}
                   onAddAsset={() => setIsAddOpen(true)}
                   onRemoveAsset={() => setIsRemoveOpen(true)}
                 />
@@ -201,9 +232,12 @@ function App() {
                 <Holdings
                   holdings={holdings}
                   activities={activities}
+                  performance={performance}
                   isLoading={isLoading}
+                  isPerformanceLoading={isPerformanceLoading}
                   error={error}
-                  onRetry={refreshItems}
+                  performanceError={performanceError}
+                  onRetry={refreshAll}
                 />
               }
             />
@@ -212,9 +246,12 @@ function App() {
               element={
                 <Performance
                   holdings={holdings}
+                  performance={performance}
                   isLoading={isLoading}
+                  isPerformanceLoading={isPerformanceLoading}
                   error={error}
-                  onRetry={refreshItems}
+                  performanceError={performanceError}
+                  onRetry={refreshAll}
                 />
               }
             />

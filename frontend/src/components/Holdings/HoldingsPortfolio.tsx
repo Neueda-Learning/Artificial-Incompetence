@@ -1,15 +1,27 @@
 import React from "react";
 import { useMemo, useState } from "react";
-import { AggregatedHolding } from "../../types/portfolio";
-import { formatNumber } from "../../utils/formatters";
+import {
+  AggregatedHolding,
+  PortfolioPerformance,
+} from "../../types/portfolio";
+import {
+  formatNumber,
+  formatPercent,
+  formatSignedUsd,
+  formatUsd,
+} from "../../utils/formatters";
 
 type SortKey = "symbol" | "shares";
 
 interface HoldingsPortfolioProps {
   holdings: AggregatedHolding[];
+  performance: PortfolioPerformance | null;
 }
 
-function HoldingsPortfolio({ holdings }: HoldingsPortfolioProps) {
+function HoldingsPortfolio({
+  holdings,
+  performance,
+}: HoldingsPortfolioProps) {
   const [searchText, setSearchText] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("shares");
   const [isDesc, setIsDesc] = useState(true);
@@ -101,29 +113,61 @@ function HoldingsPortfolio({ holdings }: HoldingsPortfolioProps) {
             </tr>
           </thead>
           <tbody>
-            {filteredRows.map((holding) => (
-              <tr key={holding.symbol}>
-                <td>
-                  <p>{holding.symbol}</p>
-                  <p className="subtle-text">{holding.assetType}</p>
-                </td>
-                <td className="numeric-cell financial-value">
-                  {formatNumber(holding.quantity, 4)}
-                </td>
-                <td className="numeric-cell financial-value">—</td>
-                <td className="numeric-cell financial-value">—</td>
-                <td className="numeric-cell financial-value">—</td>
-                <td className="numeric-cell financial-value">—</td>
-                <td className="numeric-cell financial-value">—</td>
-              </tr>
-            ))}
+            {filteredRows.map((holding) => {
+              const asset = performance?.assets.find(
+                (candidate) => candidate.symbol === holding.symbol,
+              );
+              const profitLossClass =
+                asset?.unrealizedProfitLoss == null
+                  ? ""
+                  : asset.unrealizedProfitLoss >= 0
+                    ? "value-positive"
+                    : "value-negative";
+
+              return (
+                <tr key={holding.symbol}>
+                  <td>
+                    <p>{holding.symbol}</p>
+                    <p className="subtle-text">{holding.assetType}</p>
+                  </td>
+                  <td className="numeric-cell financial-value">
+                    {formatNumber(holding.quantity, 4)}
+                  </td>
+                  <td className="numeric-cell financial-value">
+                    {formatUsd(asset?.currentPrice)}
+                  </td>
+                  <td className="numeric-cell financial-value">
+                    {formatUsd(asset?.averageCost)}
+                  </td>
+                  <td className="numeric-cell financial-value">
+                    {formatUsd(asset?.currentValue)}
+                  </td>
+                  <td
+                    className={`numeric-cell financial-value ${profitLossClass}`}
+                  >
+                    {formatSignedUsd(asset?.unrealizedProfitLoss)}
+                    {asset?.returnPercentage != null && (
+                      <span className="value-detail">
+                        {formatPercent(asset.returnPercentage)}
+                      </span>
+                    )}
+                  </td>
+                  <td className="numeric-cell financial-value">
+                    {asset?.allocationPercentage == null
+                      ? "—"
+                      : `${asset.allocationPercentage.toFixed(2)}%`}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
-      <p className="subtle-text">
-        Native price currency labels and USD valuation columns are shown as
-        unavailable until backend market-value fields are exposed.
-      </p>
+      {performance?.status === "PARTIAL" && (
+        <p className="subtle-text">
+          Some prices are unavailable: {performance.missingPrices.join(", ")}.
+        </p>
+      )}
     </article>
   );
 }

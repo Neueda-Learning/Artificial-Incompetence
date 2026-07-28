@@ -19,6 +19,10 @@ FROM nginx:alpine
 # 将构建产物复制到 nginx 静态目录
 COPY --from=builder /app/build /usr/share/nginx/html
 
+# 使用项目的 Nginx 配置，将 /api 请求代理到 backend 容器，
+# 并让 React Router 的页面路径回退到 index.html。
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
 # 暴露 80 端口
 EXPOSE 80
 
