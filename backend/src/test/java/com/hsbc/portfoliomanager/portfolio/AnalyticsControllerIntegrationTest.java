@@ -2,9 +2,6 @@ package com.hsbc.portfoliomanager.portfolio;
 
 import com.hsbc.portfoliomanager.marketdata.MarketDataService;
 import com.hsbc.portfoliomanager.marketdata.MarketDataService.PriceData;
-import com.hsbc.portfoliomanager.transaction.Transaction;
-import com.hsbc.portfoliomanager.transaction.TransactionRepository;
-import com.hsbc.portfoliomanager.transaction.TransactionType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -118,7 +115,7 @@ class AnalyticsControllerIntegrationTest {
             portfolioItemRepository.save(
                     new PortfolioItem(AssetType.STOCK, "AAPL", new BigDecimal("10")));
 
-            transactionRepository.save(new Transaction(
+            transactionRepository.save(new TransactionRecord(
                     TransactionType.BUY, AssetType.STOCK, "AAPL",
                     new BigDecimal("10"), new BigDecimal("180.50"), "USD",
                     Instant.now().minusSeconds(86400)));

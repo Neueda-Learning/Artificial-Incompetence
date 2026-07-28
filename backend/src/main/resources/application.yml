@@ -15,9 +15,9 @@ spring:
 
 marketdata:
   twelvedata:
-    api-key: ${TWELVEDATA_API_KEY:261f72db40344ddc9cb3172e049eeeda}
+    api-key: ${TWELVE_DATA_API_KEY:}
   openexchangerates:
-    api-key: ${OPENEXCHANGERATES_API_KEY:d08cf4d068c044ab8d85b1d8fa910c47}
+    api-key: ${OPENEXCHANGERATES_API_KEY:}
 
 management:
   endpoints:

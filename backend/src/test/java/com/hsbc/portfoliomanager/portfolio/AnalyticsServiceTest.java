@@ -2,9 +2,6 @@ package com.hsbc.portfoliomanager.portfolio;
 
 import com.hsbc.portfoliomanager.marketdata.MarketDataService;
 import com.hsbc.portfoliomanager.marketdata.MarketDataService.PriceData;
-import com.hsbc.portfoliomanager.transaction.Transaction;
-import com.hsbc.portfoliomanager.transaction.TransactionRepository;
-import com.hsbc.portfoliomanager.transaction.TransactionType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -171,12 +168,12 @@ class AnalyticsServiceTest {
         void singleAssetWithGain() {
             PortfolioItem aapl = new PortfolioItem(AssetType.STOCK, "AAPL", new BigDecimal("10"));
 
-            Transaction buy = new Transaction(
+            TransactionRecord buy = new TransactionRecord(
                     TransactionType.BUY, AssetType.STOCK, "AAPL",
                     new BigDecimal("10"), new BigDecimal("180.50"), "USD", NOW.minusSeconds(86400));
 
             when(portfolioItemRepository.findAll()).thenReturn(List.of(aapl));
-            when(transactionRepository.findByTransactionType(TransactionType.BUY))
+            when(transactionRepository.findByTransactionTypeOrderByTransactedAtDesc(TransactionType.BUY))
                     .thenReturn(List.of(buy));
             when(marketDataService.getCurrentPrice("AAPL"))
                     .thenReturn(Optional.of(new PriceData("AAPL", new BigDecimal("195.00"), "USD", NOW)));
@@ -215,18 +212,18 @@ class AnalyticsServiceTest {
             PortfolioItem aapl = new PortfolioItem(AssetType.STOCK, "AAPL", new BigDecimal("15"));
 
             // First purchase: 10 shares @ $180 = $1800
-            Transaction buy1 = new Transaction(
+            TransactionRecord buy1 = new TransactionRecord(
                     TransactionType.BUY, AssetType.STOCK, "AAPL",
                     new BigDecimal("10"), new BigDecimal("180.00"), "USD", NOW.minusSeconds(172800));
             // Second purchase: 5 shares @ $190 = $950
-            Transaction buy2 = new Transaction(
+            TransactionRecord buy2 = new TransactionRecord(
                     TransactionType.BUY, AssetType.STOCK, "AAPL",
                     new BigDecimal("5"), new BigDecimal("190.00"), "USD", NOW.minusSeconds(86400));
 
             // Weighted avg: (1800 + 950) / 15 = 2750 / 15 = 183.333333
 
             when(portfolioItemRepository.findAll()).thenReturn(List.of(aapl));
-            when(transactionRepository.findByTransactionType(TransactionType.BUY))
+            when(transactionRepository.findByTransactionTypeOrderByTransactedAtDesc(TransactionType.BUY))
                     .thenReturn(List.of(buy1, buy2));
             when(marketDataService.getCurrentPrice("AAPL"))
                     .thenReturn(Optional.of(new PriceData("AAPL", new BigDecimal("200.00"), "USD", NOW)));
@@ -255,12 +252,12 @@ class AnalyticsServiceTest {
         void unrealizedLoss() {
             PortfolioItem aapl = new PortfolioItem(AssetType.STOCK, "AAPL", new BigDecimal("10"));
 
-            Transaction buy = new Transaction(
+            TransactionRecord buy = new TransactionRecord(
                     TransactionType.BUY, AssetType.STOCK, "AAPL",
                     new BigDecimal("10"), new BigDecimal("200.00"), "USD", NOW.minusSeconds(86400));
 
             when(portfolioItemRepository.findAll()).thenReturn(List.of(aapl));
-            when(transactionRepository.findByTransactionType(TransactionType.BUY))
+            when(transactionRepository.findByTransactionTypeOrderByTransactedAtDesc(TransactionType.BUY))
                     .thenReturn(List.of(buy));
             when(marketDataService.getCurrentPrice("AAPL"))
                     .thenReturn(Optional.of(new PriceData("AAPL", new BigDecimal("180.00"), "USD", NOW)));
@@ -298,7 +295,7 @@ class AnalyticsServiceTest {
             PortfolioItem aapl = new PortfolioItem(AssetType.STOCK, "AAPL", new BigDecimal("10"));
 
             when(portfolioItemRepository.findAll()).thenReturn(List.of(aapl));
-            when(transactionRepository.findByTransactionType(TransactionType.BUY))
+            when(transactionRepository.findByTransactionTypeOrderByTransactedAtDesc(TransactionType.BUY))
                     .thenReturn(List.of());  // no transactions
             when(marketDataService.getCurrentPrice("AAPL"))
                     .thenReturn(Optional.of(new PriceData("AAPL", new BigDecimal("195.00"), "USD", NOW)));
@@ -322,15 +319,15 @@ class AnalyticsServiceTest {
             PortfolioItem aapl = new PortfolioItem(AssetType.STOCK, "AAPL", new BigDecimal("10"));
             PortfolioItem tsla = new PortfolioItem(AssetType.STOCK, "TSLA", new BigDecimal("4"));
 
-            Transaction buyAapl = new Transaction(
+            TransactionRecord buyAapl = new TransactionRecord(
                     TransactionType.BUY, AssetType.STOCK, "AAPL",
                     new BigDecimal("10"), new BigDecimal("180.00"), "USD", NOW);
-            Transaction buyTsla = new Transaction(
+            TransactionRecord buyTsla = new TransactionRecord(
                     TransactionType.BUY, AssetType.STOCK, "TSLA",
                     new BigDecimal("4"), new BigDecimal("250.00"), "USD", NOW);
 
             when(portfolioItemRepository.findAll()).thenReturn(List.of(aapl, tsla));
-            when(transactionRepository.findByTransactionType(TransactionType.BUY))
+            when(transactionRepository.findByTransactionTypeOrderByTransactedAtDesc(TransactionType.BUY))
                     .thenReturn(List.of(buyAapl, buyTsla));
             when(marketDataService.getCurrentPrice("AAPL"))
                     .thenReturn(Optional.of(new PriceData("AAPL", new BigDecimal("200.00"), "USD", NOW)));
@@ -358,15 +355,15 @@ class AnalyticsServiceTest {
             PortfolioItem aapl = new PortfolioItem(AssetType.STOCK, "AAPL", new BigDecimal("10"));
             PortfolioItem msft = new PortfolioItem(AssetType.STOCK, "MSFT", new BigDecimal("5"));
 
-            Transaction buyAapl = new Transaction(
+            TransactionRecord buyAapl = new TransactionRecord(
                     TransactionType.BUY, AssetType.STOCK, "AAPL",
                     new BigDecimal("10"), new BigDecimal("180.00"), "USD", NOW);
-            Transaction buyMsft = new Transaction(
+            TransactionRecord buyMsft = new TransactionRecord(
                     TransactionType.BUY, AssetType.STOCK, "MSFT",
                     new BigDecimal("5"), new BigDecimal("400.00"), "USD", NOW);
 
             when(portfolioItemRepository.findAll()).thenReturn(List.of(aapl, msft));
-            when(transactionRepository.findByTransactionType(TransactionType.BUY))
+            when(transactionRepository.findByTransactionTypeOrderByTransactedAtDesc(TransactionType.BUY))
                     .thenReturn(List.of(buyAapl, buyMsft));
             when(marketDataService.getCurrentPrice("AAPL"))
                     .thenReturn(Optional.of(new PriceData("AAPL", new BigDecimal("195.00"), "USD", NOW)));
@@ -395,7 +392,7 @@ class AnalyticsServiceTest {
             Instant later = NOW;
 
             when(portfolioItemRepository.findAll()).thenReturn(List.of(aapl, tsla));
-            when(transactionRepository.findByTransactionType(TransactionType.BUY))
+            when(transactionRepository.findByTransactionTypeOrderByTransactedAtDesc(TransactionType.BUY))
                     .thenReturn(List.of());
             when(marketDataService.getCurrentPrice("AAPL"))
                     .thenReturn(Optional.of(new PriceData("AAPL", new BigDecimal("195.00"), "USD", earlier)));
