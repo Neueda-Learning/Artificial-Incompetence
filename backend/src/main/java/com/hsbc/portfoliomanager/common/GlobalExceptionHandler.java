@@ -1,7 +1,9 @@
 package com.hsbc.portfoliomanager.common;
 
-import com.hsbc.portfoliomanager.portfolio.PortfolioItemNotFoundException;
+import com.hsbc.portfoliomanager.portfolio.AssetMetadataLookupException;
 import com.hsbc.portfoliomanager.portfolio.ExchangeRateUnavailableException;
+import com.hsbc.portfoliomanager.portfolio.MarketDataUnavailableException;
+import com.hsbc.portfoliomanager.portfolio.PortfolioItemNotFoundException;
 import com.hsbc.portfoliomanager.portfolio.UnknownCurrencyException;
 import com.hsbc.portfoliomanager.portfolio.UnsupportedTransactionTypeException;
 import org.springframework.http.HttpStatus;
@@ -17,10 +19,17 @@ import java.util.Map;
 @RestControllerAdvice
 class GlobalExceptionHandler {
 
-    /**
-     * 中文：将“持仓不存在”业务异常统一映射为 404，保证接口错误格式一致。
-     * English: Maps the "portfolio item not found" business exception to HTTP 404 with a consistent error payload.
-     */
+    @ExceptionHandler(AssetMetadataLookupException.class)
+    @ResponseStatus(HttpStatus.BAD_GATEWAY)
+    ApiError handleAssetMetadataLookup(AssetMetadataLookupException exception) {
+        return new ApiError(
+                Instant.now(),
+                HttpStatus.BAD_GATEWAY.value(),
+                exception.getMessage(),
+                Map.of()
+        );
+    }
+
     @ExceptionHandler(PortfolioItemNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     ApiError handleNotFound(PortfolioItemNotFoundException exception) {
@@ -32,10 +41,6 @@ class GlobalExceptionHandler {
         );
     }
 
-    /**
-     * 中文：处理 Bean Validation 触发的字段级校验错误，并返回字段->错误消息映射。
-     * English: Handles Bean Validation field-level errors and returns a field-to-message map.
-     */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     ApiError handleValidation(MethodArgumentNotValidException exception) {
@@ -52,10 +57,6 @@ class GlobalExceptionHandler {
         );
     }
 
-    /**
-     * 中文：当前版本只允许 BUY，若传入其他交易类型则返回 400 并定位到 transactionType 字段。
-     * English: Only BUY is supported for now; unsupported transaction types return HTTP 400 on transactionType.
-     */
     @ExceptionHandler(UnsupportedTransactionTypeException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     ApiError handleUnsupportedTransactionType(UnsupportedTransactionTypeException exception) {
@@ -67,10 +68,6 @@ class GlobalExceptionHandler {
         );
     }
 
-    /**
-     * 中文：当请求币种不在汇率服务返回列表中时返回 400，提示客户端修正 currency 输入。
-     * English: Returns HTTP 400 when requested currency is not recognized by the exchange-rate source.
-     */
     @ExceptionHandler(UnknownCurrencyException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     ApiError handleUnknownCurrency(UnknownCurrencyException exception) {
@@ -82,16 +79,23 @@ class GlobalExceptionHandler {
         );
     }
 
-    /**
-     * 中文：汇率服务不可达时返回 502，明确这是上游依赖异常而非业务输入问题。
-     * English: Returns HTTP 502 when exchange-rate service is unavailable, indicating an upstream dependency failure.
-     */
     @ExceptionHandler(ExchangeRateUnavailableException.class)
     @ResponseStatus(HttpStatus.BAD_GATEWAY)
     ApiError handleExchangeRateUnavailable(ExchangeRateUnavailableException exception) {
         return new ApiError(
                 Instant.now(),
                 HttpStatus.BAD_GATEWAY.value(),
+                exception.getMessage(),
+                Map.of()
+        );
+    }
+
+    @ExceptionHandler(MarketDataUnavailableException.class)
+    @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
+    ApiError handleMarketDataUnavailable(MarketDataUnavailableException exception) {
+        return new ApiError(
+                Instant.now(),
+                HttpStatus.SERVICE_UNAVAILABLE.value(),
                 exception.getMessage(),
                 Map.of()
         );

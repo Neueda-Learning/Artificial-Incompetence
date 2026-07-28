@@ -1,0 +1,30 @@
+spring:
+  application:
+    name: portfolio-manager
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/portfolio?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+marketdata:
+  twelvedata:
+    api-key: ${TWELVEDATA_API_KEY:261f72db40344ddc9cb3172e049eeeda}
+  openexchangerates:
+    api-key: ${OPENEXCHANGERATES_API_KEY:d08cf4d068c044ab8d85b1d8fa910c47}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+twelve-data:
+  base-url: https://api.twelvedata.com
+  api-key: ${TWELVE_DATA_API_KEY:}
