@@ -6,15 +6,20 @@ record PortfolioItemResponse(
         Long id,
         AssetType assetType,
         String symbol,
-        BigDecimal quantity
+        String companyName,
+        String exchange,
+        BigDecimal quantity,
+        String currency
 ) {
     static PortfolioItemResponse from(PortfolioItem item) {
         return new PortfolioItemResponse(
                 item.getId(),
                 item.getAssetType(),
                 item.getSymbol(),
-                item.getQuantity()
+                item.getCompanyName(),
+                item.getExchange(),
+                item.getQuantity(),
+                item.getCurrency()
         );
     }
 }
-

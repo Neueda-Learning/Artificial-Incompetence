@@ -10,9 +10,14 @@ import java.util.Locale;
 class PortfolioService {
 
     private final PortfolioItemRepository repository;
+    private final AssetMetadataClient assetMetadataClient;
 
-    PortfolioService(PortfolioItemRepository repository) {
+    PortfolioService(
+            PortfolioItemRepository repository,
+            AssetMetadataClient assetMetadataClient
+    ) {
         this.repository = repository;
+        this.assetMetadataClient = assetMetadataClient;
     }
 
     @Transactional(readOnly = true)
@@ -24,10 +29,16 @@ class PortfolioService {
 
     @Transactional
     PortfolioItemResponse create(CreatePortfolioItemRequest request) {
+        String symbol = request.symbol().trim().toUpperCase(Locale.ROOT);
+        AssetMetadata metadata = assetMetadataClient.findBySymbol(symbol);
+
         PortfolioItem item = new PortfolioItem(
                 request.assetType(),
-                request.symbol().trim().toUpperCase(Locale.ROOT),
-                request.quantity()
+                symbol,
+                metadata.companyName(),
+                metadata.exchange(),
+                request.quantity(),
+                metadata.currency()
         );
         return PortfolioItemResponse.from(repository.save(item));
     }
@@ -40,4 +51,3 @@ class PortfolioService {
         repository.deleteById(id);
     }
 }
-

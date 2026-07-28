@@ -43,6 +43,8 @@ transactions
 | `id` | `BIGINT` | 主键、自增 | 持仓ID |
 | `asset_type` | `VARCHAR(20)` | STOCK/BOND/CASH | 资产类型 |
 | `symbol` | `VARCHAR(20)` | 非空 | 股票或资产代码 |
+| `company_name` | `VARCHAR(255)` | 可空 | 公司名称，由行情API首次获取 |
+| `exchange` | `VARCHAR(50)` | 可空 | 交易所，由行情API首次获取 |
 | `quantity` | `DECIMAL(19,6)` | 大于0 | 当前持有数量 |
 | `currency` | `VARCHAR(3)` | 默认USD | ISO货币代码 |
 | `created_at` | `TIMESTAMP(6)` | 自动生成 | 创建时间 |
