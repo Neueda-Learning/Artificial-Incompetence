@@ -7,8 +7,11 @@ spring:
     password: ${DB_PASSWORD}
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
 
 marketdata:
   twelvedata:
@@ -21,3 +24,7 @@ management:
     web:
       exposure:
         include: health,info
+
+twelve-data:
+  base-url: https://api.twelvedata.com
+  api-key: ${TWELVE_DATA_API_KEY:}

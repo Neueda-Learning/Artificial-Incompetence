@@ -1,6 +1,5 @@
 package com.hsbc.portfoliomanager.common;
 
-import com.hsbc.portfoliomanager.marketdata.MarketDataUnavailableException;
 import com.hsbc.portfoliomanager.portfolio.PortfolioItemNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -14,6 +13,17 @@ import java.util.Map;
 
 @RestControllerAdvice
 class GlobalExceptionHandler {
+
+    @ExceptionHandler(AssetMetadataLookupException.class)
+    @ResponseStatus(HttpStatus.BAD_GATEWAY)
+    ApiError handleAssetMetadataLookup(AssetMetadataLookupException exception) {
+        return new ApiError(
+                Instant.now(),
+                HttpStatus.BAD_GATEWAY.value(),
+                exception.getMessage(),
+                Map.of()
+        );
+    }
 
     @ExceptionHandler(PortfolioItemNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
@@ -53,4 +63,3 @@ class GlobalExceptionHandler {
         );
     }
 }
-
