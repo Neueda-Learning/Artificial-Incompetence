@@ -15,7 +15,8 @@ HSBC team portfolio management training project.
 ```text
 .
 ├── backend/          Spring Boot REST API and Dockerfile
-├── compose.yaml      Backend and MySQL services
+├── frontend/         React frontend and Nginx reverse proxy
+├── compose.yaml      Frontend, backend, and MySQL services
 ├── .env.example      Environment variable template
 └── portfolio_manager.md
 ```
@@ -42,9 +43,14 @@ Check service status and logs:
 docker compose ps
 docker compose logs -f backend
 docker compose logs -f database
+docker compose logs -f frontend
 ```
 
-The API is available at `http://localhost:8080`.
+The application is available at `http://localhost:3000`. Nginx forwards
+browser requests under `/api` to the backend service, so the browser does not
+need a separate backend URL or CORS configuration.
+
+The API is also available directly at `http://localhost:8080`.
 The health endpoint is `http://localhost:8080/actuator/health`.
 
 Stop the services without deleting MySQL data:
@@ -57,6 +63,12 @@ Rebuild only the backend after a code change:
 
 ```bash
 docker compose up --build -d backend
+```
+
+Rebuild only the frontend after a code change:
+
+```bash
+docker compose up --build -d frontend
 ```
 
 ## Run the backend outside Docker
@@ -75,6 +87,19 @@ DB_USERNAME=portfolio_user \
 DB_PASSWORD=your_password_from_dot_env \
 mvn spring-boot:run
 ```
+
+## Run the frontend outside Docker
+
+Start the backend on port `8080`, then run:
+
+```bash
+cd frontend
+npm ci
+npm start
+```
+
+The React development server is available at `http://localhost:3000` and
+proxies `/api` requests to `http://localhost:8080`.
 
 ## Initial API
 

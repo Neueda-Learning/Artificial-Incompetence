@@ -17,7 +17,61 @@ interface RawPortfolioItem {
   id: number;
   assetType: PortfolioItem["assetType"];
   symbol: string;
+  companyName?: string | null;
+  exchange?: string | null;
   quantity: number | string;
+  currency?: string | null;
+}
+
+interface RawPortfolioValueAsset {
+  symbol: string;
+  assetType: PortfolioItem["assetType"];
+  quantity: number | string;
+  currentPrice: number | string | null;
+  marketValue: number | string | null;
+  currency: string | null;
+}
+
+interface RawPortfolioValue {
+  currency: string;
+  priceUpdatedAt: string | null;
+  status: PortfolioStatus;
+  assets: RawPortfolioValueAsset[];
+  missingPrices: string[];
+}
+
+interface RawAssetPerformance {
+  symbol: string;
+  quantity: number | string;
+  averageCost: number | string | null;
+  currentPrice: number | string | null;
+  costBasis: number | string;
+  currentValue: number | string | null;
+  unrealizedProfitLoss: number | string | null;
+  returnPercentage: number | string | null;
+  allocationPercentage: number | string | null;
+}
+
+interface RawPortfolioPerformance {
+  currency: string;
+  totalCost: number | string;
+  currentValue: number | string;
+  unrealizedProfitLoss: number | string;
+  returnPercentage: number | string;
+  status: PortfolioPerformance["status"];
+  priceUpdatedAt: string | null;
+  assets: RawAssetPerformance[];
+  missingPrices: string[];
+}
+
+interface RawTransaction {
+  id: number;
+  assetType: PortfolioItem["assetType"];
+  symbol: string;
+  quantity: number | string;
+  pricePerUnit: number | string;
+  currency: string;
+  purchasedAt: string;
 }
 
 type NullableNumeric = number | string | null;

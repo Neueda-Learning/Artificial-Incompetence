@@ -12,7 +12,7 @@ CREATE TABLE portfolio_items (
     CONSTRAINT uk_portfolio_items_asset
         UNIQUE (asset_type, symbol, currency),
     CONSTRAINT chk_portfolio_items_asset_type
-        CHECK (asset_type IN ('STOCK', 'BOND', 'CASH')),
+        CHECK (asset_type IN ('STOCK', 'ETF', 'BOND', 'CASH')),
     CONSTRAINT chk_portfolio_items_quantity
         CHECK (quantity > 0),
     CONSTRAINT chk_portfolio_items_currency

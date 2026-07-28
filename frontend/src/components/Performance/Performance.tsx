@@ -11,7 +11,8 @@ import OverallPerformance from "./OverallPerformance";
 
 interface PerformanceProps {
   holdings: AggregatedHolding[];
-  performance: PortfolioPerformance | null;
+  portfolioPerformance: PortfolioPerformance | null;
+  performanceBySymbol: Record<string, AssetPerformanceRow>;
   isLoading: boolean;
   isPerformanceLoading: boolean;
   error: string | null;
@@ -23,7 +24,8 @@ const RANGES: PerformanceRange[] = ["1W", "1M", "3M", "1Y", "ALL"];
 
 function Performance({
   holdings,
-  performance,
+  portfolioPerformance,
+  performanceBySymbol,
   isLoading,
   isPerformanceLoading,
   error,

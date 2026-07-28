@@ -13,11 +13,13 @@ import {
 interface AssetPerformanceProps {
   holdings: AggregatedHolding[];
   performance: PortfolioPerformance | null;
+  performanceBySymbol: Record<string, AssetPerformanceRow>;
 }
 
 function AssetPerformance({
   holdings,
   performance,
+  performanceBySymbol,
 }: AssetPerformanceProps) {
   return (
     <article className="panel">

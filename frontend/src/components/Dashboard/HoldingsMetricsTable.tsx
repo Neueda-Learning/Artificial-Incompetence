@@ -1,7 +1,7 @@
 import React from "react";
 import {
   AggregatedHolding,
-  PortfolioPerformance,
+  AssetPerformance,
 } from "../../types/portfolio";
 import {
   formatNumber,
@@ -11,12 +11,12 @@ import {
 
 interface HoldingsMetricsTableProps {
   holdings: AggregatedHolding[];
-  performance: PortfolioPerformance | null;
+  performanceBySymbol: Record<string, AssetPerformance>;
 }
 
 function HoldingsMetricsTable({
   holdings,
-  performance,
+  performanceBySymbol,
 }: HoldingsMetricsTableProps) {
   if (holdings.length === 0) {
     return <p className="subtle-text">No active holdings.</p>;
@@ -39,33 +39,37 @@ function HoldingsMetricsTable({
             </th>
           </tr>
         </thead>
+
         <tbody>
           {holdings.map((holding) => {
-            const asset = performance?.assets.find(
-              (candidate) => candidate.symbol === holding.symbol,
-            );
+            const performance = performanceBySymbol[holding.symbol];
+
+            const profitLossClass =
+              performance?.unrealizedProfitLoss == null
+                ? ""
+                : performance.unrealizedProfitLoss >= 0
+                  ? "value-positive"
+                  : "value-negative";
+
             return (
               <tr key={holding.symbol}>
                 <td>
                   <p>{holding.symbol}</p>
                   <p className="subtle-text">{holding.assetType}</p>
                 </td>
+
                 <td className="numeric-cell financial-value">
                   {formatNumber(holding.quantity, 4)}
                 </td>
+
                 <td className="numeric-cell financial-value">
-                  {formatUsd(asset?.currentValue)}
+                  {formatUsd(performance?.currentValue)}
                 </td>
+
                 <td
-                  className={`numeric-cell financial-value ${
-                    asset?.unrealizedProfitLoss == null
-                      ? ""
-                      : asset.unrealizedProfitLoss >= 0
-                        ? "value-positive"
-                        : "value-negative"
-                  }`}
+                  className={`numeric-cell financial-value ${profitLossClass}`}
                 >
-                  {formatSignedUsd(asset?.unrealizedProfitLoss)}
+                  {formatSignedUsd(performance?.unrealizedProfitLoss)}
                 </td>
               </tr>
             );

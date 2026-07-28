@@ -16,11 +16,13 @@ type SortKey = "symbol" | "shares";
 interface HoldingsPortfolioProps {
   holdings: AggregatedHolding[];
   performance: PortfolioPerformance | null;
+  performanceBySymbol: Record<string, AssetPerformance>;
 }
 
 function HoldingsPortfolio({
   holdings,
   performance,
+  performanceBySymbol,
 }: HoldingsPortfolioProps) {
   const [searchText, setSearchText] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("shares");

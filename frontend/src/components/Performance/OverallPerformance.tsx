@@ -28,6 +28,7 @@ function OverallPerformance({
   selectedRange,
   isHistoryLoading,
   historyError,
+  portfolioPerformance,
 }: OverallPerformanceProps) {
   const chartPoints =
     history?.points.filter((point) => point.marketValue != null) ?? [];

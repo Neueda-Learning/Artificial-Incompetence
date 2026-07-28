@@ -5,9 +5,12 @@ import {
   ActivityRecord,
   AggregatedHolding,
   PortfolioPerformance,
+  AssetPerformance,
+  Transaction,
 } from "../../types/portfolio";
 import HoldingsPortfolio from "./HoldingsPortfolio";
 import PurchaseHistory from "./PurchaseHistory";
+import { formatPercent } from "../../utils/formatters";
 
 type HoldingsTab = "positions" | "allocation" | "history";
 
@@ -15,6 +18,8 @@ interface HoldingsProps {
   holdings: AggregatedHolding[];
   activities: ActivityRecord[];
   performance: PortfolioPerformance | null;
+  transactions: Transaction[];
+  performanceBySymbol: Record<string, AssetPerformance>;
   isLoading: boolean;
   isPerformanceLoading: boolean;
   error: string | null;
@@ -26,6 +31,8 @@ function Holdings({
   holdings,
   activities,
   performance,
+  transactions,
+  performanceBySymbol,
   isLoading,
   isPerformanceLoading,
   error,
@@ -152,7 +159,9 @@ function Holdings({
         </article>
       )}
 
-      {currentTab === "history" && <PurchaseHistory activities={activities} />}
+      {currentTab === "history" && (
+        <PurchaseHistory activities={activities} transactions={transactions} />
+      )}
     </section>
   );
 }

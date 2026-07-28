@@ -1,9 +1,9 @@
 ---
-name: portfolio-dashboard-design
+name: portfolio-ui-design
 description: Design, implement, and review a professional, trustworthy Portfolio Manager frontend. Use only for work inside the frontend directory, including portfolio summaries, holdings tables, performance and allocation charts, transaction flows, market-data states, financial data presentation, responsive layouts, accessibility, and financial UI copy. The portfolio base currency is fixed to USD. Do not use this skill for backend APIs, database models, persistence, market-data ingestion, exchange-rate logic, or server-side financial calculations.
 ---
 
-# Portfolio Dashboard Design
+# Portfolio UI Design
 
 Act as a product designer and frontend engineer for a financial portfolio-management application. Create a distinctive but restrained interface whose primary qualities are correctness, clarity, consistency, accessibility, and trust.
 
@@ -219,6 +219,26 @@ A typical dashboard hierarchy may include:
 Only use numbering when order is meaningful. Do not decorate sections with arbitrary `01 / 02 / 03` labels.
 
 Keep vocabulary consistent across navigation, headings, buttons, API-backed states, and notifications. If the action is called `Add transaction`, use that same name throughout the flow.
+
+## Asset lifecycle
+
+- The product supports separate `Add Asset` and `Remove Asset` actions.
+- Do not rename these actions to `Buy`, `Sell`, or `Add Transaction`.
+- Adding an existing symbol increases its current share quantity rather than
+  creating a duplicate position row.
+- When the same symbol is added again, show the updated share quantity and
+  weighted average cost returned by the backend.
+- A partial removal reduces the current share quantity while keeping the
+  position active.
+- Continue displaying and refreshing market data while the remaining share
+  quantity is greater than zero.
+- When the remaining share quantity reaches zero, remove the position from
+  current holdings and allocation, but preserve its activity history.
+- Current holdings must contain at most one active row per symbol.
+- Historical Add and Remove records must never be merged into the current
+  position table.
+- Do not calculate realized profit or loss in the frontend.
+- Display realized profit or loss only when the backend explicitly provides it.
 
 ## Summary cards
 
@@ -509,3 +529,5 @@ A Portfolio Manager frontend task is not complete until:
 - Keyboard focus and reduced-motion behavior work.
 - The visual design feels intentional without competing with the data.
 - Existing project conventions and dependencies are respected.
+
+

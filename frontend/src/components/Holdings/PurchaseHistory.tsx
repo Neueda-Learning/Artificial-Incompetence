@@ -1,18 +1,40 @@
 import React from "react";
-import { ActivityRecord } from "../../types/portfolio";
-import { formatDate, formatNumber } from "../../utils/formatters";
+import { ActivityRecord, Transaction } from "../../types/portfolio";
+import { formatDate, formatNumber, formatUsd } from "../../utils/formatters";
 
 interface PurchaseHistoryProps {
   activities: ActivityRecord[];
+  transactions: Transaction[];
 }
 
-function PurchaseHistory({ activities }: PurchaseHistoryProps) {
+function PurchaseHistory({ activities, transactions }: PurchaseHistoryProps) {
+  const historyRecords = [
+    ...transactions.map((transaction) => ({
+      id: `tx-${transaction.id}`,
+      date: transaction.purchasedAt,
+      action: "Added",
+      symbol: transaction.symbol,
+      shares: transaction.quantity,
+      price: transaction.pricePerUnit,
+      remainingShares: null as number | null,
+    })),
+    ...activities.map((activity) => ({
+      id: `local-${activity.id}`,
+      date: activity.date,
+      action: activity.action === "ADDED" ? "Added" : "Removed",
+      symbol: activity.symbol,
+      shares: activity.shares,
+      price: null as number | null,
+      remainingShares: activity.remainingShares ?? null,
+    })),
+  ].sort((a, b) => +new Date(b.date) - +new Date(a.date));
+
   return (
     <article className="panel">
       <h3>History</h3>
-      {activities.length === 0 ? (
+      {historyRecords.length === 0 ? (
         <p className="subtle-text">
-          No Add or Remove history is available from backend yet.
+          No Add or Remove history is available yet.
         </p>
       ) : (
         <div className="table-wrapper">
@@ -34,15 +56,17 @@ function PurchaseHistory({ activities }: PurchaseHistoryProps) {
               </tr>
             </thead>
             <tbody>
-              {activities.map((record) => (
+              {historyRecords.map((record) => (
                 <tr key={record.id}>
                   <td>{formatDate(record.date)}</td>
-                  <td>{record.action === "ADDED" ? "Added" : "Removed"}</td>
+                  <td>{record.action}</td>
                   <td>{record.symbol}</td>
                   <td className="numeric-cell financial-value">
                     {formatNumber(record.shares, 4)}
                   </td>
-                  <td className="numeric-cell financial-value">—</td>
+                  <td className="numeric-cell financial-value">
+                    {formatUsd(record.price)}
+                  </td>
                   <td className="numeric-cell financial-value">
                     {record.remainingShares ?? "—"}
                   </td>

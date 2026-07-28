@@ -7,6 +7,8 @@ export interface AddAssetPayload {
   assetType: AssetType;
   symbol: string;
   shares: number;
+  purchaseDate?: string;
+  purchasePrice?: number;
 }
 
 interface AddAssetModalProps {
@@ -61,11 +63,12 @@ function AddAssetModal({
     if (purchaseDate && isFutureDate(purchaseDate)) {
       return "Purchase date cannot be in the future.";
     }
-    if (purchasePrice) {
-      const priceValue = Number(purchasePrice);
-      if (!Number.isFinite(priceValue) || priceValue <= 0) {
-        return "Purchase price must be greater than zero.";
-      }
+    if (!purchasePrice.trim()) {
+      return "Purchase price per share is required.";
+    }
+    const priceValue = Number(purchasePrice);
+    if (!Number.isFinite(priceValue) || priceValue <= 0) {
+      return "Purchase price must be greater than zero.";
     }
     return null;
   }, [normalizedSymbol, shares, purchaseDate, purchasePrice]);
@@ -89,6 +92,8 @@ function AddAssetModal({
         assetType,
         symbol: normalizedSymbol,
         shares: Number(shares),
+        purchaseDate: purchaseDate || undefined,
+        purchasePrice: purchasePrice ? Number(purchasePrice) : undefined,
       });
       setSuccess(message);
       setShares("");
@@ -177,6 +182,7 @@ function AddAssetModal({
           <label>
             Purchase price per share
             <input
+              required
               name="purchasePrice"
               type="number"
               step="0.0001"
@@ -187,8 +193,8 @@ function AddAssetModal({
           </label>
 
           <p className="helper-text">
-            Purchase date and price are not yet persisted by the current backend
-            contract. They are validated for UX consistency only.
+            If purchase date and price are filled, a BUY transaction will also be
+            recorded in backend history.
           </p>
 
           {currentHolding && (
