@@ -1,6 +1,5 @@
 package com.hsbc.portfoliomanager.common;
 
-import com.hsbc.portfoliomanager.marketdata.MarketDataUnavailableException;
 import com.hsbc.portfoliomanager.portfolio.PortfolioItemNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -39,17 +38,6 @@ class GlobalExceptionHandler {
                 HttpStatus.BAD_REQUEST.value(),
                 "Request validation failed",
                 fieldErrors
-        );
-    }
-
-    @ExceptionHandler(MarketDataUnavailableException.class)
-    @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
-    ApiError handleMarketDataUnavailable(MarketDataUnavailableException exception) {
-        return new ApiError(
-                Instant.now(),
-                HttpStatus.SERVICE_UNAVAILABLE.value(),
-                exception.getMessage(),
-                Map.of()
         );
     }
 }
