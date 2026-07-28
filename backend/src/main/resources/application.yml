@@ -18,3 +18,7 @@ management:
     web:
       exposure:
         include: health,info
+
+twelve-data:
+  base-url: https://api.twelvedata.com
+  api-key: ${TWELVE_DATA_API_KEY:}
