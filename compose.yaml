@@ -48,6 +48,18 @@ services:
     networks:
       - portfolio-network
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - portfolio-network
+
 volumes:
   mysql-data:
 
