@@ -1,5 +1,7 @@
 package com.hsbc.portfoliomanager.common;
 
+import com.hsbc.portfoliomanager.marketdata.MarketDataUnavailableException;
+import com.hsbc.portfoliomanager.portfolio.AssetMetadataLookupException;
 import com.hsbc.portfoliomanager.portfolio.PortfolioItemNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.MethodArgumentNotValidException;
