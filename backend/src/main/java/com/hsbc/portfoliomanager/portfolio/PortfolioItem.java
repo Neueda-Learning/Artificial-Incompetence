@@ -57,6 +57,14 @@ class PortfolioItem {
         this.currency = currency;
     }
 
+    PortfolioItem(AssetType assetType, String symbol, BigDecimal quantity) {
+        this(assetType, symbol, null, null, quantity, "USD");
+    }
+
+    PortfolioItem(AssetType assetType, String symbol, BigDecimal quantity, String currency) {
+        this(assetType, symbol, null, null, quantity, currency);
+    }
+
     Long getId() {
         return id;
     }
@@ -83,5 +91,9 @@ class PortfolioItem {
 
     String getCurrency() {
         return currency;
+    }
+
+    void addQuantity(BigDecimal additionalQuantity) {
+        this.quantity = this.quantity.add(additionalQuantity);
     }
 }

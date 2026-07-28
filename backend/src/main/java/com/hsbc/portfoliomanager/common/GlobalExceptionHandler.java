@@ -2,10 +2,10 @@ package com.hsbc.portfoliomanager.common;
 
 import com.hsbc.portfoliomanager.portfolio.AssetMetadataLookupException;
 import com.hsbc.portfoliomanager.portfolio.ExchangeRateUnavailableException;
-import com.hsbc.portfoliomanager.portfolio.MarketDataUnavailableException;
 import com.hsbc.portfoliomanager.portfolio.PortfolioItemNotFoundException;
 import com.hsbc.portfoliomanager.portfolio.UnknownCurrencyException;
 import com.hsbc.portfoliomanager.portfolio.UnsupportedTransactionTypeException;
+import com.hsbc.portfoliomanager.marketdata.MarketDataUnavailableException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
