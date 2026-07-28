@@ -26,6 +26,12 @@ class PortfolioItem {
     @Column(nullable = false, length = 20)
     private String symbol;
 
+    @Column(name = "company_name", length = 255)
+    private String companyName;
+
+    @Column(length = 50)
+    private String exchange;
+
     @Column(nullable = false, precision = 19, scale = 6)
     private BigDecimal quantity;
 
@@ -48,8 +54,21 @@ class PortfolioItem {
      * English: Creates a portfolio item with explicit currency so holdings stay aligned with transaction currency.
      */
     PortfolioItem(AssetType assetType, String symbol, BigDecimal quantity, String currency) {
+        this(assetType, symbol, null, null, quantity, currency);
+    }
+
+    PortfolioItem(
+            AssetType assetType,
+            String symbol,
+            String companyName,
+            String exchange,
+            BigDecimal quantity,
+            String currency
+    ) {
         this.assetType = assetType;
         this.symbol = symbol;
+        this.companyName = companyName;
+        this.exchange = exchange;
         this.quantity = quantity;
         this.currency = currency;
     }
@@ -64,6 +83,14 @@ class PortfolioItem {
 
     String getSymbol() {
         return symbol;
+    }
+
+    String getCompanyName() {
+        return companyName;
+    }
+
+    String getExchange() {
+        return exchange;
     }
 
     BigDecimal getQuantity() {

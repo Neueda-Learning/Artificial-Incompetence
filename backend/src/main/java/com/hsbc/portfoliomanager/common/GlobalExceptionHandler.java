@@ -1,8 +1,9 @@
 package com.hsbc.portfoliomanager.common;
 
+
+import com.hsbc.portfoliomanager.marketdata.MarketDataUnavailableException;
 import com.hsbc.portfoliomanager.portfolio.AssetMetadataLookupException;
 import com.hsbc.portfoliomanager.portfolio.ExchangeRateUnavailableException;
-import com.hsbc.portfoliomanager.portfolio.MarketDataUnavailableException;
 import com.hsbc.portfoliomanager.portfolio.PortfolioItemNotFoundException;
 import com.hsbc.portfoliomanager.portfolio.UnknownCurrencyException;
 import com.hsbc.portfoliomanager.portfolio.UnsupportedTransactionTypeException;

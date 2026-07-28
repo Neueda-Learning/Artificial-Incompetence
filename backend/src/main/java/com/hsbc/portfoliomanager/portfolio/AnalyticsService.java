@@ -9,9 +9,6 @@ import java.util.List;
 import java.util.Map;
 
 import com.hsbc.portfoliomanager.marketdata.MarketDataService;
-import com.hsbc.portfoliomanager.transaction.Transaction;
-import com.hsbc.portfoliomanager.transaction.TransactionRepository;
-import com.hsbc.portfoliomanager.transaction.TransactionType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -124,11 +121,12 @@ class AnalyticsService {
         }
 
         // Load all buy transactions once
-        List<Transaction> allBuys = transactionRepository.findByTransactionType(TransactionType.BUY);
+        List<TransactionRecord> allBuys =
+                transactionRepository.findByTransactionTypeOrderByTransactedAtDesc(TransactionType.BUY);
 
         // Group transactions by symbol for weighted average cost calculation
-        Map<String, List<Transaction>> buysBySymbol = new HashMap<>();
-        for (Transaction tx : allBuys) {
+        Map<String, List<TransactionRecord>> buysBySymbol = new HashMap<>();
+        for (TransactionRecord tx : allBuys) {
             buysBySymbol.computeIfAbsent(tx.getSymbol(), k -> new ArrayList<>()).add(tx);
         }
 
@@ -281,7 +279,7 @@ class AnalyticsService {
      * Calculate weighted average cost per unit for a list of buy transactions.
      * Weighted average = total spent / total quantity bought.
      */
-    private BigDecimal calculateWeightedAverageCost(List<Transaction> buys) {
+    private BigDecimal calculateWeightedAverageCost(List<TransactionRecord> buys) {
         if (buys == null || buys.isEmpty()) {
             return null;
         }
@@ -289,7 +287,7 @@ class AnalyticsService {
         BigDecimal totalCost = BigDecimal.ZERO;
         BigDecimal totalQuantity = BigDecimal.ZERO;
 
-        for (Transaction tx : buys) {
+        for (TransactionRecord tx : buys) {
             BigDecimal txCost = tx.getPricePerUnit().multiply(tx.getQuantity());
             totalCost = totalCost.add(txCost);
             totalQuantity = totalQuantity.add(tx.getQuantity());
