@@ -38,6 +38,10 @@ public class PortfolioItem {
     @Column(nullable = false, length = 3)
     private String currency;
 
+    /**
+     * 中文：JPA 专用无参构造器，用于从数据库记录还原实体。
+     * English: JPA-only no-argument constructor used to restore an entity from a database row.
+     */
     protected PortfolioItem() {
     }
 
@@ -57,6 +61,10 @@ public class PortfolioItem {
         this(assetType, symbol, null, null, quantity, currency);
     }
 
+    /**
+     * 中文：使用完整的资产元数据创建持仓实体。
+     * English: Creates a portfolio holding entity with complete asset metadata.
+     */
     public PortfolioItem(
             AssetType assetType,
             String symbol,
@@ -73,30 +81,58 @@ public class PortfolioItem {
         this.currency = currency;
     }
 
+    /**
+     * 中文：返回持仓的数据库主键。
+     * English: Returns the database identifier of this portfolio holding.
+     */
     public Long getId() {
         return id;
     }
 
+    /**
+     * 中文：返回资产类型。
+     * English: Returns the asset type.
+     */
     public AssetType getAssetType() {
         return assetType;
     }
 
+    /**
+     * 中文：返回标准化后的资产代码。
+     * English: Returns the normalized asset symbol.
+     */
     public String getSymbol() {
         return symbol;
     }
 
+    /**
+     * 中文：返回公司名称。
+     * English: Returns the company name.
+     */
     public String getCompanyName() {
         return companyName;
     }
 
+    /**
+     * 中文：返回资产所在交易所。
+     * English: Returns the exchange on which the asset is traded.
+     */
     public String getExchange() {
         return exchange;
     }
 
+    /**
+     * 中文：返回当前持仓数量。
+     * English: Returns the current holding quantity.
+     */
     public BigDecimal getQuantity() {
         return quantity;
     }
 
+    /**
+     * 中文：返回资产的计价币种。
+     * English: Returns the trading currency of the asset.
+     */
     public String getCurrency() {
         return currency;
     }

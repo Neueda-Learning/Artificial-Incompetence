@@ -14,6 +14,10 @@ class TwelveDataAssetMetadataClient implements AssetMetadataClient {
     private final RestClient restClient;
     private final TwelveDataProperties properties;
 
+    /**
+     * 中文：根据 Twelve Data 配置创建用于查询元数据的 HTTP 客户端。
+     * English: Creates an HTTP client for metadata lookups using the Twelve Data configuration.
+     */
     TwelveDataAssetMetadataClient(TwelveDataProperties properties) {
         this.restClient = RestClient.builder()
                 .baseUrl(properties.baseUrl())
@@ -21,6 +25,10 @@ class TwelveDataAssetMetadataClient implements AssetMetadataClient {
         this.properties = properties;
     }
 
+    /**
+     * 中文：调用 Twelve Data quote 接口并返回标准化后的资产元数据。
+     * English: Calls the Twelve Data quote endpoint and returns normalized asset metadata.
+     */
     @Override
     public AssetMetadata findBySymbol(String symbol) {
         if (!StringUtils.hasText(properties.apiKey())) {

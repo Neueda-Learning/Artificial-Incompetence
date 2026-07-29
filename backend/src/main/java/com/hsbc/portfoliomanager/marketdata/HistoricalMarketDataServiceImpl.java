@@ -14,6 +14,10 @@ class HistoricalMarketDataServiceImpl implements HistoricalMarketDataService {
     private final HistoricalPriceService historicalPriceService;
     private final HistoricalExchangeRateService historicalExchangeRateService;
 
+    /**
+     * 中文：注入历史价格服务和历史汇率服务。
+     * English: Injects the historical price and historical exchange-rate services.
+     */
     HistoricalMarketDataServiceImpl(
             HistoricalPriceService historicalPriceService,
             HistoricalExchangeRateService historicalExchangeRateService
@@ -22,6 +26,10 @@ class HistoricalMarketDataServiceImpl implements HistoricalMarketDataService {
         this.historicalExchangeRateService = historicalExchangeRateService;
     }
 
+    /**
+     * 中文：委托历史价格服务获取并缓存每日价格。
+     * English: Delegates daily price retrieval and caching to the historical price service.
+     */
     @Override
     public List<PricePoint> getDailyPrices(
             AssetType assetType,
@@ -41,6 +49,10 @@ class HistoricalMarketDataServiceImpl implements HistoricalMarketDataService {
         );
     }
 
+    /**
+     * 中文：委托历史汇率服务获取并缓存指定日期的美元汇率。
+     * English: Delegates dated USD exchange-rate retrieval and caching to the historical rate service.
+     */
     @Override
     public Optional<BigDecimal> getRateToUsd(String fromCurrency, LocalDate date) {
         return historicalExchangeRateService.getRateToUsd(fromCurrency, date);

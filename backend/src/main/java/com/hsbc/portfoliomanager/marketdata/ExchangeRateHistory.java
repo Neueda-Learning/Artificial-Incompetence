@@ -47,9 +47,17 @@ class ExchangeRateHistory {
     @Column(name = "fetched_at", nullable = false)
     private Instant fetchedAt;
 
+    /**
+     * 中文：JPA 专用无参构造器，用于从数据库记录还原汇率实体。
+     * English: JPA-only no-argument constructor used to restore exchange-rate entities.
+     */
     protected ExchangeRateHistory() {
     }
 
+    /**
+     * 中文：使用币种、日期、汇率和来源信息创建历史汇率记录。
+     * English: Creates a historical exchange-rate record with currency, date, rate, and source data.
+     */
     ExchangeRateHistory(
             String baseCurrency,
             String quoteCurrency,
@@ -67,6 +75,10 @@ class ExchangeRateHistory {
         this.fetchedAt = Instant.now();
     }
 
+    /**
+     * 中文：返回基础币种兑换为目标币种的历史汇率。
+     * English: Returns the historical rate from the base currency to the quote currency.
+     */
     BigDecimal getExchangeRate() {
         return exchangeRate;
     }

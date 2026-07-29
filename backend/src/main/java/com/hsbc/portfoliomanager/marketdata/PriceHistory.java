@@ -75,9 +75,17 @@ class PriceHistory {
     @Column(name = "fetched_at", nullable = false)
     private Instant fetchedAt;
 
+    /**
+     * 中文：JPA 专用无参构造器，用于从数据库记录还原历史价格实体。
+     * English: JPA-only no-argument constructor used to restore historical price entities.
+     */
     protected PriceHistory() {
     }
 
+    /**
+     * 中文：使用完整行情字段创建一条待保存的历史价格记录。
+     * English: Creates a historical price record from a complete set of market-data fields.
+     */
     PriceHistory(
             AssetType assetType,
             String symbol,
@@ -109,26 +117,50 @@ class PriceHistory {
         this.fetchedAt = Instant.now();
     }
 
+    /**
+     * 中文：返回资产类型。
+     * English: Returns the asset type.
+     */
     AssetType getAssetType() {
         return assetType;
     }
 
+    /**
+     * 中文：返回资产代码。
+     * English: Returns the asset symbol.
+     */
     String getSymbol() {
         return symbol;
     }
 
+    /**
+     * 中文：返回交易所名称。
+     * English: Returns the exchange name.
+     */
     String getExchange() {
         return exchange;
     }
 
+    /**
+     * 中文：返回价格的计价币种。
+     * English: Returns the price currency.
+     */
     String getCurrency() {
         return currency;
     }
 
+    /**
+     * 中文：返回该行情点对应的日期。
+     * English: Returns the date represented by this market-data point.
+     */
     LocalDate getPriceDate() {
         return priceDate;
     }
 
+    /**
+     * 中文：返回该日期的收盘价格。
+     * English: Returns the closing price for the date.
+     */
     BigDecimal getClosePrice() {
         return closePrice;
     }

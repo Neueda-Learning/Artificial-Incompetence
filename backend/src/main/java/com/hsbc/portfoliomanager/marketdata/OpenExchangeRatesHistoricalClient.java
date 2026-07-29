@@ -25,11 +25,19 @@ class OpenExchangeRatesHistoricalClient {
     private final RestTemplate restTemplate;
     private final MarketDataConfig config;
 
+    /**
+     * 中文：注入 HTTP 客户端和 Open Exchange Rates 配置。
+     * English: Injects the HTTP client and Open Exchange Rates configuration.
+     */
     OpenExchangeRatesHistoricalClient(RestTemplate restTemplate, MarketDataConfig config) {
         this.restTemplate = restTemplate;
         this.config = config;
     }
 
+    /**
+     * 中文：查询指定日期的历史汇率，并将 USD 基准汇率换算成目标币种兑 USD。
+     * English: Fetches a dated rate and inverts the USD-base quote into the currency-to-USD rate.
+     */
     Optional<HistoricalUsdRate> fetchRateToUsd(String fromCurrency, LocalDate date) {
         String apiKey = config.getOpenExchangeRatesApiKey();
         if (apiKey == null || apiKey.isBlank()) {

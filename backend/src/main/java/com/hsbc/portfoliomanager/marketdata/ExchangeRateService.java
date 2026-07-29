@@ -26,11 +26,19 @@ class ExchangeRateService {
     private volatile CachedRates cachedRates;
     private static final long CACHE_TTL_MILLIS = 300_000; // 5 minutes
 
+    /**
+     * 中文：注入市场数据 HTTP 客户端和汇率 API 配置。
+     * English: Injects the market data HTTP client and exchange-rate API configuration.
+     */
     ExchangeRateService(RestTemplate restTemplate, MarketDataConfig config) {
         this.restTemplate = restTemplate;
         this.config = config;
     }
 
+    /**
+     * 中文：使用以 USD 为基准的最新汇率，将指定金额转换为美元。
+     * English: Converts an amount into USD using the latest USD-based exchange rates.
+     */
     Optional<BigDecimal> convertToUsd(BigDecimal amount, String fromCurrency) {
         if (fromCurrency == null) {
             return Optional.empty();
@@ -58,6 +66,10 @@ class ExchangeRateService {
         return Optional.of(amount.divide(rate, 6, RoundingMode.HALF_UP));
     }
 
+    /**
+     * 中文：优先返回有效缓存，否则从 Open Exchange Rates 获取最新汇率表。
+     * English: Returns valid cached rates or fetches the latest rate table from Open Exchange Rates.
+     */
     private Optional<Map<String, BigDecimal>> getRates() {
         CachedRates cached = this.cachedRates;
         if (cached != null && !cached.isExpired()) {
@@ -109,6 +121,10 @@ class ExchangeRateService {
     }
 
     private record CachedRates(Map<String, BigDecimal> rates, long fetchedAtMillis) {
+        /**
+         * 中文：判断汇率缓存是否已经超过有效期。
+         * English: Determines whether the cached exchange rates have exceeded their time-to-live.
+         */
         boolean isExpired() {
             return System.currentTimeMillis() - fetchedAtMillis > CACHE_TTL_MILLIS;
         }
