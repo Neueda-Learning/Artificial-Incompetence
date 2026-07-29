@@ -1,6 +1,6 @@
 package com.hsbc.portfoliomanager.marketdata;
 
-import com.hsbc.portfoliomanager.portfolio.AssetType;
+import com.hsbc.portfoliomanager.portfolio.holding.AssetType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

@@ -1,6 +1,6 @@
 package com.hsbc.portfoliomanager.marketdata;
 
-import com.hsbc.portfoliomanager.portfolio.AssetType;
+import com.hsbc.portfoliomanager.portfolio.holding.AssetType;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;

@@ -1,6 +1,6 @@
 package com.hsbc.portfoliomanager.marketdata;
 
-import com.hsbc.portfoliomanager.portfolio.AssetType;
+import com.hsbc.portfoliomanager.portfolio.holding.AssetType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;

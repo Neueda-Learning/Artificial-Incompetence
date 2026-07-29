@@ -1,6 +1,6 @@
 package com.hsbc.portfoliomanager.marketdata;
 
-import com.hsbc.portfoliomanager.portfolio.AssetType;
+import com.hsbc.portfoliomanager.portfolio.holding.AssetType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
