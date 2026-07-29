@@ -28,6 +28,10 @@ class AnalyticsService {
     private final TransactionRepository transactionRepository;
     private final MarketDataService marketDataService;
 
+    /**
+     * 中文：注入持仓仓库、交易仓库和当前市场数据服务。
+     * English: Injects the holding repository, transaction repository, and current market data service.
+     */
     AnalyticsService(PortfolioItemRepository portfolioItemRepository,
                      TransactionRepository transactionRepository,
                      MarketDataService marketDataService) {
@@ -36,6 +40,10 @@ class AnalyticsService {
         this.marketDataService = marketDataService;
     }
 
+    /**
+     * 中文：使用当前价格计算每项持仓的市值，并标记缺失价格的数据状态。
+     * English: Uses current prices to calculate each holding's market value and reports missing-price status.
+     */
     @Transactional(readOnly = true)
     PortfolioValueResponse calculateCurrentValue() {
         List<PortfolioItem> items = portfolioItemRepository.findAll();
@@ -107,6 +115,10 @@ class AnalyticsService {
         return new PortfolioValueResponse("USD", latestUpdate, status, assets, missingPrices);
     }
 
+    /**
+     * 中文：根据购买历史和当前市场价格计算组合及单项资产的绩效指标。
+     * English: Calculates portfolio-level and asset-level performance from purchase history and current market prices.
+     */
     @Transactional(readOnly = true)
     PortfolioPerformanceResponse calculatePerformance() {
         List<PortfolioItem> holdings = portfolioItemRepository.findAll();
@@ -281,8 +293,8 @@ class AnalyticsService {
     }
 
     /**
-     * Calculate weighted average cost per unit for a list of buy transactions.
-     * Weighted average = total spent / total quantity bought.
+     * 中文：根据多笔买入的总成本和总数量计算加权平均单位成本。
+     * English: Calculates weighted average unit cost from the total cost and quantity of multiple purchases.
      */
     private BigDecimal calculateWeightedAverageCost(List<TransactionRecord> buys) {
         if (buys == null || buys.isEmpty()) {

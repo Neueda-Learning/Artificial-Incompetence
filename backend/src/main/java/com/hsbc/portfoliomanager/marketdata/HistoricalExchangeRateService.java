@@ -16,6 +16,10 @@ class HistoricalExchangeRateService {
     private final ExchangeRateHistoryRepository repository;
     private final OpenExchangeRatesHistoricalClient client;
 
+    /**
+     * 中文：注入历史汇率仓库和 Open Exchange Rates 客户端。
+     * English: Injects the historical rate repository and Open Exchange Rates client.
+     */
     HistoricalExchangeRateService(
             ExchangeRateHistoryRepository repository,
             OpenExchangeRatesHistoricalClient client
@@ -24,6 +28,10 @@ class HistoricalExchangeRateService {
         this.client = client;
     }
 
+    /**
+     * 中文：优先读取指定日期的本地汇率，缺失时获取并保存外部汇率。
+     * English: Reads the dated rate locally first, fetching and storing it when missing.
+     */
     @Transactional
     Optional<BigDecimal> getRateToUsd(String fromCurrency, LocalDate date) {
         String normalizedCurrency = fromCurrency.trim().toUpperCase(Locale.ROOT);

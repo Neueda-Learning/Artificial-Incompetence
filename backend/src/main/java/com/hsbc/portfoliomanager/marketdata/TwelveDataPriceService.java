@@ -26,11 +26,19 @@ class TwelveDataPriceService {
     private final Map<String, CachedPrice> cache = new ConcurrentHashMap<>();
     private static final long CACHE_TTL_MILLIS = 60_000; // 1 minute cache
 
+    /**
+     * 中文：注入市场数据 HTTP 客户端和 API 配置。
+     * English: Injects the market data HTTP client and API configuration.
+     */
     TwelveDataPriceService(RestTemplate restTemplate, MarketDataConfig config) {
         this.restTemplate = restTemplate;
         this.config = config;
     }
 
+    /**
+     * 中文：优先从短期缓存读取价格，未命中时调用 Twelve Data quote 接口。
+     * English: Reads a price from the short-lived cache or calls the Twelve Data quote endpoint on a cache miss.
+     */
     Optional<MarketDataService.PriceData> fetchPrice(String symbol) {
         // Check cache first
         CachedPrice cached = cache.get(symbol);
@@ -91,6 +99,10 @@ class TwelveDataPriceService {
     }
 
     private record CachedPrice(MarketDataService.PriceData priceData, long fetchedAtMillis) {
+        /**
+         * 中文：判断当前价格缓存是否已经超过有效期。
+         * English: Determines whether the cached current price has exceeded its time-to-live.
+         */
         boolean isExpired() {
             return System.currentTimeMillis() - fetchedAtMillis > CACHE_TTL_MILLIS;
         }

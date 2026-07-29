@@ -18,6 +18,10 @@ class TransactionController {
 
     private final TransactionService service;
 
+    /**
+     * 中文：注入交易业务服务。
+     * English: Injects the transaction service used by this controller.
+     */
     TransactionController(TransactionService service) {
         this.service = service;
     }

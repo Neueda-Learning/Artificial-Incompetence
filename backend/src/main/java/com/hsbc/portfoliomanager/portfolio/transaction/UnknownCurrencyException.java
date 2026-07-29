@@ -6,6 +6,10 @@ package com.hsbc.portfoliomanager.portfolio.transaction;
  */
 public class UnknownCurrencyException extends RuntimeException {
 
+    /**
+     * 中文：根据无法识别的币种代码创建异常。
+     * English: Creates an exception for a currency code that cannot be recognized.
+     */
     UnknownCurrencyException(String currency) {
         super("Unknown currency: %s".formatted(currency));
     }

@@ -12,7 +12,8 @@ public interface TransactionRepository extends JpaRepository<TransactionRecord, 
     List<TransactionRecord> findByTransactionTypeOrderByTransactedAtDesc(TransactionType transactionType);
 
     /**
-     * Returns the complete ledger in chronological order for historical portfolio reconstruction.
+     * 中文：按时间顺序返回完整交易账本，用于重建历史投资组合。
+     * English: Returns the complete ledger in chronological order for historical portfolio reconstruction.
      */
     List<TransactionRecord> findAllByOrderByTransactedAtAsc();
 }

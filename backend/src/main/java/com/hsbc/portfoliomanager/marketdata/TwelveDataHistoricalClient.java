@@ -25,11 +25,19 @@ class TwelveDataHistoricalClient {
     private final RestTemplate restTemplate;
     private final MarketDataConfig config;
 
+    /**
+     * 中文：注入 HTTP 客户端和 Twelve Data 配置。
+     * English: Injects the HTTP client and Twelve Data configuration.
+     */
     TwelveDataHistoricalClient(RestTemplate restTemplate, MarketDataConfig config) {
         this.restTemplate = restTemplate;
         this.config = config;
     }
 
+    /**
+     * 中文：调用 Twelve Data time_series 接口并解析指定区间的每日价格。
+     * English: Calls the Twelve Data time_series endpoint and parses daily prices for a date range.
+     */
     List<HistoricalPrice> fetchDailyPrices(
             AssetType assetType,
             String symbol,
@@ -114,6 +122,10 @@ class TwelveDataHistoricalClient {
         }
     }
 
+    /**
+     * 中文：从第三方响应值中解析 ISO 日期，格式无效时返回空值。
+     * English: Parses an ISO date from an upstream value, returning null when the format is invalid.
+     */
     private static LocalDate parseDate(Object value) {
         if (value == null) {
             return null;
@@ -125,6 +137,10 @@ class TwelveDataHistoricalClient {
         return LocalDate.parse(text.substring(0, 10));
     }
 
+    /**
+     * 中文：将第三方响应值转换为高精度小数，缺失时返回空值。
+     * English: Converts an upstream response value to a decimal, returning null when absent.
+     */
     private static BigDecimal decimal(Object value) {
         if (value == null || value.toString().isBlank()) {
             return null;
@@ -132,6 +148,10 @@ class TwelveDataHistoricalClient {
         return new BigDecimal(value.toString());
     }
 
+    /**
+     * 中文：优先使用接口返回值，否则使用备用值，并标准化和限制长度。
+     * English: Prefers the API value, falls back when needed, then normalizes and limits its length.
+     */
     private static String normalizedValue(Object preferred, String fallback, int maxLength) {
         String value = preferred == null || preferred.toString().isBlank()
                 ? fallback

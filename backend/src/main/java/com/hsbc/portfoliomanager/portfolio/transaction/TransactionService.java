@@ -16,6 +16,10 @@ class TransactionService {
     private final PortfolioItemRepository portfolioItemRepository;
     private final ExchangeRateClient exchangeRateClient;
 
+    /**
+     * 中文：注入交易仓库、持仓仓库和币种校验客户端。
+     * English: Injects the transaction repository, holding repository, and currency validation client.
+     */
     TransactionService(
             TransactionRepository transactionRepository,
             PortfolioItemRepository portfolioItemRepository,

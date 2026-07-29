@@ -45,6 +45,10 @@ public class TransactionRecord {
     @Column(name = "transacted_at", nullable = false)
     private Instant transactedAt;
 
+    /**
+     * 中文：JPA 专用无参构造器，用于从数据库记录还原交易实体。
+     * English: JPA-only no-argument constructor used to restore a transaction entity from a database row.
+     */
     protected TransactionRecord() {
     }
 
@@ -70,34 +74,66 @@ public class TransactionRecord {
         this.transactedAt = transactedAt;
     }
 
+    /**
+     * 中文：返回交易记录的数据库主键。
+     * English: Returns the database identifier of this transaction record.
+     */
     public Long getId() {
         return id;
     }
 
+    /**
+     * 中文：返回交易类型。
+     * English: Returns the transaction type.
+     */
     public TransactionType getTransactionType() {
         return transactionType;
     }
 
+    /**
+     * 中文：返回交易资产类型。
+     * English: Returns the asset type involved in the transaction.
+     */
     public AssetType getAssetType() {
         return assetType;
     }
 
+    /**
+     * 中文：返回交易资产代码。
+     * English: Returns the symbol of the transacted asset.
+     */
     public String getSymbol() {
         return symbol;
     }
 
+    /**
+     * 中文：返回本次交易数量。
+     * English: Returns the quantity traded in this transaction.
+     */
     public BigDecimal getQuantity() {
         return quantity;
     }
 
+    /**
+     * 中文：返回本次交易的每单位成交价格。
+     * English: Returns the executed price per unit for this transaction.
+     */
     public BigDecimal getPricePerUnit() {
         return pricePerUnit;
     }
 
+    /**
+     * 中文：返回本次交易的计价币种。
+     * English: Returns the currency in which this transaction was priced.
+     */
     public String getCurrency() {
         return currency;
     }
 
+    /**
+     * 中文：返回交易发生时间。
+     * English: Returns the time at which the transaction occurred.
+     */
     public Instant getTransactedAt() {
         return transactedAt;
     }

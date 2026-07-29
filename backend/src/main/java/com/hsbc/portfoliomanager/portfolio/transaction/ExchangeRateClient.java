@@ -14,6 +14,10 @@ class ExchangeRateClient {
     private final RestClient restClient;
     private final String exchangeRateUrl;
 
+    /**
+     * 中文：使用配置的汇率服务地址创建币种校验客户端。
+     * English: Creates a currency validation client using the configured exchange-rate service URL.
+     */
     ExchangeRateClient(
             @Value("${exchange-rate.url:https://open.er-api.com/v6/latest/USD}") String exchangeRateUrl
     ) {

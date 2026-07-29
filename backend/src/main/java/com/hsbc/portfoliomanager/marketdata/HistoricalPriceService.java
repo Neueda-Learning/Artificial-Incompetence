@@ -21,11 +21,19 @@ class HistoricalPriceService {
     private final PriceHistoryRepository repository;
     private final TwelveDataHistoricalClient client;
 
+    /**
+     * 中文：注入历史价格仓库和 Twelve Data 历史数据客户端。
+     * English: Injects the historical price repository and Twelve Data history client.
+     */
     HistoricalPriceService(PriceHistoryRepository repository, TwelveDataHistoricalClient client) {
         this.repository = repository;
         this.client = client;
     }
 
+    /**
+     * 中文：优先读取本地历史价格，缺失时调用外部 API 并将新数据保存到数据库。
+     * English: Reads historical prices locally first, fetching and persisting missing data when needed.
+     */
     @Transactional
     List<HistoricalMarketDataService.PricePoint> getDailyPrices(
             AssetType assetType,
@@ -104,6 +112,10 @@ class HistoricalPriceService {
                 .toList();
     }
 
+    /**
+     * 中文：判断本地历史价格是否覆盖请求区间，并容忍周末和休市日期。
+     * English: Checks whether stored prices cover the range while tolerating weekends and market closures.
+     */
     private boolean coversRequestedRange(
             List<PriceHistory> stored,
             LocalDate startDate,
@@ -118,6 +130,10 @@ class HistoricalPriceService {
                 && !last.isBefore(endDate.minusDays(MARKET_CLOSURE_TOLERANCE_DAYS));
     }
 
+    /**
+     * 中文：将历史价格实体转换成分析模块使用的价格点。
+     * English: Converts a persisted historical price entity into an analytics price point.
+     */
     private static HistoricalMarketDataService.PricePoint toPoint(PriceHistory price) {
         return new HistoricalMarketDataService.PricePoint(
                 price.getSymbol(),
@@ -127,6 +143,10 @@ class HistoricalPriceService {
         );
     }
 
+    /**
+     * 中文：将可空字符串去空格并转换为大写，空值转换为空字符串。
+     * English: Trims and uppercases a nullable value, converting null to an empty string.
+     */
     private static String normalize(String value) {
         return value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
     }

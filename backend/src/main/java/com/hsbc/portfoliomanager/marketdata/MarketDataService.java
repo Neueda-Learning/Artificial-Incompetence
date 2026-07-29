@@ -7,7 +7,8 @@ import java.util.Optional;
 public interface MarketDataService {
 
     /**
-     * Get the current price for a stock symbol in its native currency.
+     * 中文：获取股票代码以其原始计价币种表示的当前价格。
+     * English: Gets the current price for a stock symbol in its native currency.
      *
      * @param symbol the stock ticker symbol
      * @return price data if available, empty if the service is unavailable
@@ -15,7 +16,8 @@ public interface MarketDataService {
     Optional<PriceData> getCurrentPrice(String symbol);
 
     /**
-     * Convert an amount from one currency to USD.
+     * 中文：将指定币种的金额转换为美元。
+     * English: Converts an amount from its source currency into USD.
      *
      * @param amount         the amount to convert
      * @param fromCurrency   the source currency code (e.g. "GBP", "EUR")
@@ -24,7 +26,8 @@ public interface MarketDataService {
     Optional<BigDecimal> convertToUsd(BigDecimal amount, String fromCurrency);
 
     /**
-     * Check whether the market data service is currently available.
+     * 中文：检查市场数据服务当前是否可用。
+     * English: Checks whether the market data service is currently available.
      */
     boolean isAvailable();
 

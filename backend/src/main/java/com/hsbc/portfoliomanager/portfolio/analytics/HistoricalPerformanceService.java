@@ -36,6 +36,10 @@ class HistoricalPerformanceService {
     private final TransactionRepository transactionRepository;
     private final HistoricalMarketDataService historicalMarketDataService;
 
+    /**
+     * 中文：注入持仓、交易和历史市场数据依赖。
+     * English: Injects holding, transaction, and historical market data dependencies.
+     */
     HistoricalPerformanceService(
             PortfolioItemRepository portfolioItemRepository,
             TransactionRepository transactionRepository,
@@ -46,6 +50,10 @@ class HistoricalPerformanceService {
         this.historicalMarketDataService = historicalMarketDataService;
     }
 
+    /**
+     * 中文：按时间范围重建每日持仓，并计算历史市值、成本和收益率。
+     * English: Reconstructs daily holdings and calculates historical value, cost, and return for a time range.
+     */
     HistoricalPerformanceResponse calculate(String requestedRange) {
         String range = normalizeRange(requestedRange);
         LocalDate endDate = LocalDate.now(ZoneOffset.UTC);
@@ -232,6 +240,10 @@ class HistoricalPerformanceService {
         );
     }
 
+    /**
+     * 中文：将一笔交易应用到指定资产的历史持仓数量和美元成本状态。
+     * English: Applies a transaction to an asset's historical quantity and USD cost state.
+     */
     private void applyTransaction(
             Map<AssetKey, PositionState> positions,
             TransactionRecord transaction,
@@ -281,6 +293,10 @@ class HistoricalPerformanceService {
         position.quantity = position.quantity.subtract(soldQuantity);
     }
 
+    /**
+     * 中文：建立资产与交易所的映射，为历史价格查询提供交易所参数。
+     * English: Builds an asset-to-exchange mapping for historical price queries.
+     */
     private Map<AssetKey, String> exchangesByAsset() {
         Map<AssetKey, String> result = new HashMap<>();
         for (PortfolioItem item : portfolioItemRepository.findAll()) {
@@ -292,10 +308,18 @@ class HistoricalPerformanceService {
         return result;
     }
 
+    /**
+     * 中文：将交易时间转换为 UTC 日期。
+     * English: Converts a transaction timestamp into a UTC calendar date.
+     */
     private static LocalDate transactionDate(TransactionRecord transaction) {
         return transaction.getTransactedAt().atZone(ZoneOffset.UTC).toLocalDate();
     }
 
+    /**
+     * 中文：查找指定资产最早的买入日期。
+     * English: Finds the earliest purchase date for the specified asset.
+     */
     private static LocalDate firstBuyDate(
             AssetKey asset,
             List<TransactionRecord> transactions
@@ -312,6 +336,10 @@ class HistoricalPerformanceService {
                 .orElse(null);
     }
 
+    /**
+     * 中文：标准化并校验历史绩效时间范围参数。
+     * English: Normalizes and validates a historical performance range parameter.
+     */
     private static String normalizeRange(String requestedRange) {
         String normalized = requestedRange == null
                 ? "1M"
@@ -325,6 +353,10 @@ class HistoricalPerformanceService {
         };
     }
 
+    /**
+     * 中文：根据时间范围和最早交易日期计算查询起始日期。
+     * English: Calculates the query start date from the requested range and earliest transaction date.
+     */
     private static LocalDate startDate(
             String range,
             LocalDate endDate,

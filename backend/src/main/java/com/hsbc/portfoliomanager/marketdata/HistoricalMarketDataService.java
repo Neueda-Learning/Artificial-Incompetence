@@ -9,6 +9,10 @@ import java.util.Optional;
 
 public interface HistoricalMarketDataService {
 
+    /**
+     * 中文：获取指定资产和日期范围内的每日收盘价格。
+     * English: Returns daily closing prices for an asset within the requested date range.
+     */
     List<PricePoint> getDailyPrices(
             AssetType assetType,
             String symbol,
@@ -18,6 +22,10 @@ public interface HistoricalMarketDataService {
             LocalDate endDate
     );
 
+    /**
+     * 中文：获取指定币种在某一天兑换为美元的汇率。
+     * English: Returns the rate for converting a currency to USD on a given date.
+     */
     Optional<BigDecimal> getRateToUsd(String fromCurrency, LocalDate date);
 
     record PricePoint(
