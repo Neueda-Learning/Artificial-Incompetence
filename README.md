@@ -1,73 +1,199 @@
-# Artificial-Incompetence
+# Portfolio Manager
 
-HSBC team portfolio management training project.
+Portfolio Manager is a full-stack portfolio tracking application. It allows
+users to maintain their holdings, record purchases, view current valuations,
+and analyse portfolio performance using live and historical market data.
 
-## Technology
+## Implemented Features
+
+### Portfolio and Holdings
+
+- Add stock, ETF, bond, and cash holdings.
+- Store the symbol, asset type, quantity, company name, exchange, and currency.
+- Retrieve company metadata from Twelve Data when an asset is first added.
+- Combine repeated entries for the same symbol into one active holding.
+- Partially reduce or completely remove a holding.
+- Keep portfolio data in MySQL across container restarts.
+
+### Purchase History
+
+- Record BUY transactions with quantity, purchase price, currency, and date.
+- Display purchase history in reverse chronological order.
+- Use recorded purchases to calculate weighted average cost and cost basis.
+
+### Current Valuation and Performance
+
+- Retrieve current market prices from Twelve Data.
+- Convert non-USD values using Open Exchange Rates.
+- Calculate current market value for each asset.
+- Calculate total cost basis, unrealised profit or loss, return percentage, and
+  portfolio allocation.
+- Report `COMPLETE`, `PARTIAL`, or `UNAVAILABLE` when external market data is
+  missing.
+
+### Historical Performance
+
+- Support `1W`, `1M`, `3M`, `1Y`, and `ALL` performance ranges.
+- Retrieve and store historical prices and exchange rates.
+- Reuse cached market data from MySQL to reduce repeated external API calls.
+- Calculate historical market value, cost basis, profit or loss, and return
+  percentage.
+- Return details about missing price or exchange-rate data.
+
+### Web Interface
+
+- Dashboard with portfolio summary, market indicators, top holdings, and recent
+  activity.
+- Holdings page with positions, allocation, and purchase-history views.
+- Performance page with portfolio and per-asset metrics.
+- Add Asset and Remove Asset workflows.
+- Loading, empty, partial-data, and error states.
+- Client-side routing with direct URL support through Nginx.
+
+## Technology Stack
+
+### Backend
 
 - Java 21
-- Spring Boot
+- Spring Boot 4.1
+- Spring Web MVC
+- Spring Data JPA and Hibernate
+- Jakarta Bean Validation
+- Spring Boot Actuator
 - Maven
-- MySQL 8.4
-- Docker Compose
 
-## Project structure
+### Frontend
+
+- React 18
+- TypeScript
+- React Router
+- Axios
+- Create React App
+- Nginx
+
+### Data and External Services
+
+- MySQL 8.4
+- Flyway database migrations
+- H2 in-memory database for backend tests
+- Twelve Data API for asset metadata and market prices
+- Open Exchange Rates API for currency conversion
+
+### Development and Delivery
+
+- Docker and Docker Compose
+- GitHub Actions continuous integration
+- Jest and React Testing Library
+- JUnit and Spring Boot Test
+
+## Project Structure
 
 ```text
 .
-├── backend/          Spring Boot REST API and Dockerfile
-├── compose.yaml      Backend and MySQL services
-├── .env.example      Environment variable template
-└── portfolio_manager.md
+├── backend/                 Spring Boot REST API
+│   └── src/main/
+│       ├── java/com/hsbc/portfoliomanager/
+│       │   ├── portfolio/
+│       │   │   ├── holding/     Holding and asset-metadata feature
+│       │   │   ├── transaction/ Purchase-history feature
+│       │   │   └── analytics/   Valuation and performance feature
+│       │   ├── marketdata/      Current and historical market-data feature
+│       │   └── common/          Shared API error handling
+│       └── resources/
+│           └── db/migration Flyway SQL migrations
+├── frontend/                React and TypeScript web application
+├── compose.yaml             Frontend, backend, and MySQL services
+├── .env.example             Environment variable template
+└── .github/workflows/       GitHub Actions CI configuration
 ```
 
-## Configure Docker
+## Configuration
 
-Create a local `.env` file and replace both development passwords:
+Create a local environment file:
 
 ```bash
 cp .env.example .env
 ```
 
-The `.env` file is ignored by Git and must not be committed.
+Set the MySQL passwords and personal API keys in `.env`:
 
-## Build and start the complete stack
+```dotenv
+MYSQL_DATABASE=portfolio
+MYSQL_USER=portfolio_user
+MYSQL_PASSWORD=your_development_password
+MYSQL_ROOT_PASSWORD=your_root_password
+
+MYSQL_PORT=3306
+BACKEND_PORT=8080
+FRONTEND_PORT=3000
+
+TWELVE_DATA_API_KEY=your_twelve_data_key
+OPENEXCHANGERATES_API_KEY=your_open_exchange_rates_key
+```
+
+The `.env` file is ignored by Git and must not be committed. Each developer can
+use a personal API key without changing the shared database structure or API
+response format.
+
+## Run with Docker
+
+Build and start the complete application:
 
 ```bash
 docker compose up --build -d
 ```
 
-Check service status and logs:
+Open the application:
+
+- Frontend: `http://localhost:3000`
+- Backend API: `http://localhost:8080`
+- Health check: `http://localhost:8080/actuator/health`
+
+Check container status and logs:
 
 ```bash
 docker compose ps
 docker compose logs -f backend
+docker compose logs -f frontend
 docker compose logs -f database
 ```
 
-The API is available at `http://localhost:8080`.
-The health endpoint is `http://localhost:8080/actuator/health`.
-
-Stop the services without deleting MySQL data:
+Stop the application without deleting MySQL data:
 
 ```bash
 docker compose down
 ```
 
-Rebuild only the backend after a code change:
+## Main REST API
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| `GET` | `/api/portfolio/items` | List current holdings |
+| `POST` | `/api/portfolio/items` | Add a holding |
+| `DELETE` | `/api/portfolio/items/{id}` | Delete a holding |
+| `GET` | `/api/transactions?type=BUY` | List purchase history |
+| `POST` | `/api/transactions` | Record a purchase |
+| `GET` | `/api/portfolio/value` | Calculate current portfolio value |
+| `GET` | `/api/portfolio/performance` | Calculate current performance |
+| `GET` | `/api/portfolio/performance/history?range=1M` | Calculate historical performance |
+
+Example request:
 
 ```bash
-docker compose up --build -d backend
+curl -X POST http://localhost:8080/api/portfolio/items \
+  -H 'Content-Type: application/json' \
+  -d '{"assetType":"STOCK","symbol":"AAPL","quantity":10}'
 ```
 
-## Run the backend outside Docker
+## Local Development
 
-Start only MySQL:
+Start MySQL in Docker:
 
 ```bash
 docker compose up -d database
 ```
 
-Run Spring Boot locally:
+Run the backend:
 
 ```bash
 cd backend
@@ -76,45 +202,41 @@ DB_PASSWORD=your_password_from_dot_env \
 mvn spring-boot:run
 ```
 
-## Initial API
-
-List portfolio items:
+Run the frontend in another terminal:
 
 ```bash
-curl http://localhost:8080/api/portfolio/items
+cd frontend
+npm install
+npm start
 ```
 
-Create an item:
+The React development server proxies `/api` requests to
+`http://localhost:8080`.
 
-```bash
-curl -X POST http://localhost:8080/api/portfolio/items \
-  -H 'Content-Type: application/json' \
-  -d '{"assetType":"STOCK","symbol":"AAPL","quantity":10}'
-```
+## Tests
 
-Delete an item:
-
-```bash
-curl -X DELETE http://localhost:8080/api/portfolio/items/1
-```
-
-## Run tests
-
-Tests use an in-memory H2 database and do not require Docker:
+Run backend tests:
 
 ```bash
 cd backend
 mvn test
 ```
 
-## Continuous integration
+Run frontend tests and type checking:
 
-GitHub Actions runs the backend CI workflow for pushes and pull requests
-targeting `main`. The workflow:
+```bash
+cd frontend
+npm run test:ci
+npm run typecheck
+```
+
+## Continuous Integration
+
+GitHub Actions runs for pushes and pull requests targeting `main`. The workflow:
 
 1. Sets up Java 21.
-2. Runs Maven verification, including tests and packaging.
-3. Builds the backend Docker image without pushing it.
+2. runs Maven verification and backend tests;
+3. packages the Spring Boot application; and
+4. builds the backend Docker image without publishing it.
 
-The workflow can also be started manually from the repository's **Actions**
-page. Its definition is in `.github/workflows/ci.yml`.
+The workflow is defined in `.github/workflows/ci.yml`.
