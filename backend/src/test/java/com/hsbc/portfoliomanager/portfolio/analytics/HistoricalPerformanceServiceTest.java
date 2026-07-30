@@ -2,12 +2,12 @@ package com.hsbc.portfoliomanager.portfolio.analytics;
 
 import com.hsbc.portfoliomanager.marketdata.HistoricalMarketDataService;
 import com.hsbc.portfoliomanager.marketdata.HistoricalMarketDataService.PricePoint;
+import com.hsbc.portfoliomanager.portfolio.activity.PortfolioActivityAction;
+import com.hsbc.portfoliomanager.portfolio.activity.PortfolioActivityService;
+import com.hsbc.portfoliomanager.portfolio.activity.PortfolioLedgerEntry;
 import com.hsbc.portfoliomanager.portfolio.holding.AssetType;
 import com.hsbc.portfoliomanager.portfolio.holding.PortfolioItem;
 import com.hsbc.portfoliomanager.portfolio.holding.PortfolioItemRepository;
-import com.hsbc.portfoliomanager.portfolio.transaction.TransactionRecord;
-import com.hsbc.portfoliomanager.portfolio.transaction.TransactionRepository;
-import com.hsbc.portfoliomanager.portfolio.transaction.TransactionType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -36,7 +36,7 @@ class HistoricalPerformanceServiceTest {
     private PortfolioItemRepository portfolioItemRepository;
 
     @Mock
-    private TransactionRepository transactionRepository;
+    private PortfolioActivityService activityService;
 
     @Mock
     private HistoricalMarketDataService historicalMarketDataService;
@@ -47,7 +47,7 @@ class HistoricalPerformanceServiceTest {
     void setUp() {
         service = new HistoricalPerformanceService(
                 portfolioItemRepository,
-                transactionRepository,
+                activityService,
                 historicalMarketDataService
         );
     }
@@ -56,8 +56,8 @@ class HistoricalPerformanceServiceTest {
     @DisplayName("calculates daily performance from transaction cost and cached market history")
     void calculatesDailyPerformance() {
         LocalDate today = LocalDate.now(ZoneOffset.UTC);
-        TransactionRecord buy = new TransactionRecord(
-                TransactionType.BUY,
+        PortfolioLedgerEntry buy = new PortfolioLedgerEntry(
+                PortfolioActivityAction.ADDED,
                 AssetType.STOCK,
                 "MSFT",
                 new BigDecimal("5"),
@@ -74,7 +74,7 @@ class HistoricalPerformanceServiceTest {
                 "USD"
         );
 
-        when(transactionRepository.findAllByOrderByTransactedAtAsc()).thenReturn(List.of(buy));
+        when(activityService.findLedgerOldestFirst()).thenReturn(List.of(buy));
         when(portfolioItemRepository.findAll()).thenReturn(List.of(holding));
         when(historicalMarketDataService.getDailyPrices(
                 eq(AssetType.STOCK),
@@ -110,8 +110,8 @@ class HistoricalPerformanceServiceTest {
     @DisplayName("returns separate historical performance series for every stock")
     void calculatesSeparateSeriesForEveryStock() {
         LocalDate today = LocalDate.now(ZoneOffset.UTC);
-        TransactionRecord appleBuy = new TransactionRecord(
-                TransactionType.BUY,
+        PortfolioLedgerEntry appleBuy = new PortfolioLedgerEntry(
+                PortfolioActivityAction.ADDED,
                 AssetType.STOCK,
                 "AAPL",
                 new BigDecimal("2"),
@@ -119,8 +119,8 @@ class HistoricalPerformanceServiceTest {
                 "USD",
                 today.minusDays(3).atStartOfDay().toInstant(ZoneOffset.UTC)
         );
-        TransactionRecord microsoftBuy = new TransactionRecord(
-                TransactionType.BUY,
+        PortfolioLedgerEntry microsoftBuy = new PortfolioLedgerEntry(
+                PortfolioActivityAction.ADDED,
                 AssetType.STOCK,
                 "MSFT",
                 new BigDecimal("3"),
@@ -129,7 +129,7 @@ class HistoricalPerformanceServiceTest {
                 today.minusDays(3).atStartOfDay().toInstant(ZoneOffset.UTC)
         );
 
-        when(transactionRepository.findAllByOrderByTransactedAtAsc())
+        when(activityService.findLedgerOldestFirst())
                 .thenReturn(List.of(appleBuy, microsoftBuy));
         when(portfolioItemRepository.findAll()).thenReturn(List.of(
                 new PortfolioItem(
@@ -187,7 +187,7 @@ class HistoricalPerformanceServiceTest {
     @Test
     @DisplayName("returns unavailable without transaction history")
     void unavailableWithoutTransactions() {
-        when(transactionRepository.findAllByOrderByTransactedAtAsc()).thenReturn(List.of());
+        when(activityService.findLedgerOldestFirst()).thenReturn(List.of());
 
         HistoricalPerformanceResponse response = service.calculate("1M");
 
@@ -204,8 +204,8 @@ class HistoricalPerformanceServiceTest {
     @DisplayName("reports the purchase date when all available prices predate the position")
     void reportsMissingPriceOnPurchaseDate() {
         LocalDate today = LocalDate.now(ZoneOffset.UTC);
-        TransactionRecord buy = new TransactionRecord(
-                TransactionType.BUY,
+        PortfolioLedgerEntry buy = new PortfolioLedgerEntry(
+                PortfolioActivityAction.ADDED,
                 AssetType.STOCK,
                 "MSFT",
                 new BigDecimal("10"),
@@ -222,7 +222,7 @@ class HistoricalPerformanceServiceTest {
                 "USD"
         );
 
-        when(transactionRepository.findAllByOrderByTransactedAtAsc()).thenReturn(List.of(buy));
+        when(activityService.findLedgerOldestFirst()).thenReturn(List.of(buy));
         when(portfolioItemRepository.findAll()).thenReturn(List.of(holding));
         when(historicalMarketDataService.getDailyPrices(
                 eq(AssetType.STOCK),

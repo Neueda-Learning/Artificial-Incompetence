@@ -17,9 +17,12 @@ and analyse portfolio performance using live and historical market data.
 
 ### Purchase History
 
-- Record BUY transactions with quantity, purchase price, currency, and date.
+- Record purchases and removals in one immutable `portfolio_activities` ledger.
+- Store purchase quantity, price, currency, and date without a duplicate
+  `transactions` table.
 - Display purchase history in reverse chronological order.
-- Use recorded purchases to calculate weighted average cost and cost basis.
+- Replay added and removed activity to calculate remaining average cost and
+  cost basis.
 
 ### Current Valuation and Performance
 
@@ -95,7 +98,8 @@ and analyse portfolio performance using live and historical market data.
 │       ├── java/com/hsbc/portfoliomanager/
 │       │   ├── portfolio/
 │       │   │   ├── holding/     Holding and asset-metadata feature
-│       │   │   ├── transaction/ Purchase-history feature
+│       │   │   ├── activity/    Unified purchase and removal ledger
+│       │   │   ├── transaction/ Purchase API and validation
 │       │   │   └── analytics/   Valuation and performance feature
 │       │   ├── marketdata/      Current and historical market-data feature
 │       │   └── common/          Shared API error handling

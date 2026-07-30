@@ -1,6 +1,7 @@
 package com.hsbc.portfoliomanager.portfolio.transaction;
 
 import com.hsbc.portfoliomanager.portfolio.activity.PortfolioActivityService;
+import com.hsbc.portfoliomanager.portfolio.activity.PortfolioLedgerEntry;
 import com.hsbc.portfoliomanager.portfolio.holding.AssetMetadata;
 import com.hsbc.portfoliomanager.portfolio.holding.AssetMetadataClient;
 import com.hsbc.portfoliomanager.portfolio.holding.AssetType;
@@ -17,24 +18,21 @@ import java.util.Locale;
 @Service
 class TransactionService {
 
-    private final TransactionRepository transactionRepository;
     private final PortfolioItemRepository portfolioItemRepository;
     private final ExchangeRateClient exchangeRateClient;
     private final AssetMetadataClient assetMetadataClient;
     private final PortfolioActivityService activityService;
 
     /**
-     * 中文：注入交易仓库、持仓仓库、币种校验客户端和资产元数据客户端。
-     * English: Injects transaction and holding repositories plus currency-validation and asset-metadata clients.
+     * 中文：注入持仓、活动账本、币种校验和资产元数据依赖。
+     * English: Injects holding, activity-ledger, currency-validation, and asset-metadata dependencies.
      */
     TransactionService(
-            TransactionRepository transactionRepository,
             PortfolioItemRepository portfolioItemRepository,
             ExchangeRateClient exchangeRateClient,
             AssetMetadataClient assetMetadataClient,
             PortfolioActivityService activityService
     ) {
-        this.transactionRepository = transactionRepository;
         this.portfolioItemRepository = portfolioItemRepository;
         this.exchangeRateClient = exchangeRateClient;
         this.assetMetadataClient = assetMetadataClient;
@@ -42,8 +40,8 @@ class TransactionService {
     }
 
     /**
-     * 中文：在一个事务中同时完成“写交易历史 + 更新当前持仓”，避免两张表状态不一致。
-     * English: In one transaction, writes transaction history and updates current holdings atomically.
+     * 中文：在一个事务中同时完成“写购买活动 + 更新当前持仓”，避免两张表状态不一致。
+     * English: Atomically writes purchase activity and updates current holdings in one transaction.
      */
     @Transactional
     TransactionResponse create(CreateTransactionRequest request) {
@@ -75,21 +73,8 @@ class TransactionService {
             throw new UnknownCurrencyException(normalizedCurrency);
         }
 
-        // 中文：先落交易历史，确保“发生过的交易”可追溯。
-        // English: Persist transaction history first so executed events remain traceable.
-        TransactionRecord transaction = new TransactionRecord(
-                request.transactionType(),
-                request.assetType(),
-                normalizedSymbol,
-                request.quantity(),
-                request.pricePerUnit(),
-                normalizedCurrency,
-                request.purchasedAt()
-        );
-        TransactionRecord savedTransaction = transactionRepository.save(transaction);
-
-        // 中文：再更新持仓快照；若已有同一资产则累加数量，否则创建新持仓行。
-        // English: Then update holdings snapshot; add quantity if position exists, otherwise create a new position row.
+        // 中文：更新持仓快照；若已有同一资产则累加数量，否则创建新持仓行。
+        // English: Update the holdings snapshot; add quantity if the position exists, otherwise create it.
         portfolioItemRepository
                 .findByAssetTypeAndSymbolAndCurrency(request.assetType(), normalizedSymbol, normalizedCurrency)
                 .ifPresentOrElse(
@@ -104,7 +89,7 @@ class TransactionService {
                         ))
                 );
 
-        activityService.recordAdded(
+        PortfolioLedgerEntry savedPurchase = activityService.recordAdded(
                 request.assetType(),
                 normalizedSymbol,
                 request.quantity(),
@@ -113,7 +98,7 @@ class TransactionService {
                 request.purchasedAt()
         );
 
-        return TransactionResponse.from(savedTransaction);
+        return TransactionResponse.from(savedPurchase);
     }
 
     /**
@@ -122,7 +107,10 @@ class TransactionService {
      */
     @Transactional(readOnly = true)
     List<TransactionResponse> findByType(TransactionType type) {
-        return transactionRepository.findByTransactionTypeOrderByTransactedAtDesc(type).stream()
+        if (type != TransactionType.BUY) {
+            return List.of();
+        }
+        return activityService.findPurchasesNewestFirst().stream()
                 .map(TransactionResponse::from)
                 .toList();
     }
