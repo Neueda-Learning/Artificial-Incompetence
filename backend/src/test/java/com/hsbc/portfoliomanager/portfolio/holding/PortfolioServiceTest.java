@@ -1,7 +1,6 @@
 package com.hsbc.portfoliomanager.portfolio.holding;
 
 import com.hsbc.portfoliomanager.portfolio.activity.PortfolioActivityService;
-import com.hsbc.portfoliomanager.portfolio.transaction.TransactionRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -39,9 +38,6 @@ class PortfolioServiceTest {
     private AssetMetadataClient assetMetadataClient;
 
     @Mock
-    private TransactionRepository transactionRepository;
-
-    @Mock
     private PortfolioActivityService activityService;
 
     private PortfolioService portfolioService;
@@ -49,7 +45,7 @@ class PortfolioServiceTest {
     @BeforeEach
     void setUp() {
         portfolioService = new PortfolioService(
-                repository, assetMetadataClient, transactionRepository, activityService);
+                repository, assetMetadataClient, activityService);
     }
 
     // Create a spy PortfolioItem with a stubbed id, for tests that call replaceQuantity()
@@ -290,7 +286,6 @@ class PortfolioServiceTest {
             portfolioService.delete(itemId);
 
             verify(repository).deleteAll(List.of(target, duplicate));
-            verify(transactionRepository).deleteByAssetTypeAndSymbol(AssetType.STOCK, "AAPL");
             verify(activityService).recordRemoved(
                     eq(AssetType.STOCK), eq("AAPL"), eq(new BigDecimal("13")),
                     eq("USD"), eq(BigDecimal.ZERO), any(Instant.class));
@@ -322,7 +317,6 @@ class PortfolioServiceTest {
             verify(activityService).recordRemoved(
                     eq(AssetType.STOCK), eq("TSLA"), eq(new BigDecimal("4")),
                     eq("USD"), eq(BigDecimal.ZERO), any(Instant.class));
-            verify(transactionRepository).deleteByAssetTypeAndSymbol(AssetType.STOCK, "TSLA");
             verify(repository).deleteAll(List.of(target));
         }
     }

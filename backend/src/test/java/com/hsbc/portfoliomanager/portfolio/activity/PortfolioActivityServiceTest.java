@@ -107,6 +107,9 @@ class PortfolioActivityServiceTest {
         @Test
         @DisplayName("persists ADDED activity with all fields populated")
         void persistsAddedActivity() {
+            when(repository.save(any(PortfolioActivity.class)))
+                    .thenAnswer(invocation -> invocation.getArgument(0));
+
             activityService.recordAdded(
                     AssetType.STOCK, "AAPL",
                     new BigDecimal("10"), new BigDecimal("195.00"),
@@ -130,6 +133,9 @@ class PortfolioActivityServiceTest {
         @Test
         @DisplayName("persists ADDED activity for non-STOCK asset")
         void persistsNonStockAddedActivity() {
+            when(repository.save(any(PortfolioActivity.class)))
+                    .thenAnswer(invocation -> invocation.getArgument(0));
+
             activityService.recordAdded(
                     AssetType.CASH, "EUR",
                     new BigDecimal("5000"), new BigDecimal("1.08"),

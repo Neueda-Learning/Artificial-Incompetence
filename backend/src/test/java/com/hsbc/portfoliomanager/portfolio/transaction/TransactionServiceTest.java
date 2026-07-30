@@ -1,6 +1,8 @@
 package com.hsbc.portfoliomanager.portfolio.transaction;
 
+import com.hsbc.portfoliomanager.portfolio.activity.PortfolioActivityAction;
 import com.hsbc.portfoliomanager.portfolio.activity.PortfolioActivityService;
+import com.hsbc.portfoliomanager.portfolio.activity.PortfolioLedgerEntry;
 import com.hsbc.portfoliomanager.portfolio.holding.AssetMetadata;
 import com.hsbc.portfoliomanager.portfolio.holding.AssetMetadataClient;
 import com.hsbc.portfoliomanager.portfolio.holding.AssetType;
@@ -34,9 +36,6 @@ import static org.mockito.Mockito.when;
 class TransactionServiceTest {
 
     @Mock
-    private TransactionRepository transactionRepository;
-
-    @Mock
     private PortfolioItemRepository portfolioItemRepository;
 
     @Mock
@@ -55,7 +54,6 @@ class TransactionServiceTest {
     @BeforeEach
     void setUp() {
         transactionService = new TransactionService(
-                transactionRepository,
                 portfolioItemRepository,
                 exchangeRateClient,
                 assetMetadataClient,
@@ -91,10 +89,13 @@ class TransactionServiceTest {
             AssetMetadata metadata = new AssetMetadata("AAPL", "Apple Inc.", "NASDAQ", "USD");
             when(assetMetadataClient.findBySymbol("AAPL")).thenReturn(metadata);
 
-            TransactionRecord savedRecord = new TransactionRecord(
-                    TransactionType.BUY, AssetType.STOCK, "AAPL",
+            PortfolioLedgerEntry ledgerEntry = new PortfolioLedgerEntry(
+                    PortfolioActivityAction.ADDED, AssetType.STOCK, "AAPL",
                     new BigDecimal("10"), new BigDecimal("195.00"), "USD", NOW);
-            when(transactionRepository.save(any(TransactionRecord.class))).thenReturn(savedRecord);
+            when(activityService.recordAdded(
+                    eq(AssetType.STOCK), eq("AAPL"), eq(new BigDecimal("10")),
+                    eq(new BigDecimal("195.00")), eq("USD"), eq(NOW)))
+                    .thenReturn(ledgerEntry);
 
             when(portfolioItemRepository.findByAssetTypeAndSymbolAndCurrency(
                     AssetType.STOCK, "AAPL", "USD")).thenReturn(Optional.empty());
@@ -103,14 +104,6 @@ class TransactionServiceTest {
 
             // Verify symbol was normalized (trimmed + uppercased)
             verify(assetMetadataClient).findBySymbol("AAPL");
-
-            // Verify transaction was persisted
-            ArgumentCaptor<TransactionRecord> txCaptor = ArgumentCaptor.forClass(TransactionRecord.class);
-            verify(transactionRepository).save(txCaptor.capture());
-            TransactionRecord savedTx = txCaptor.getValue();
-            assertThat(savedTx.getSymbol()).isEqualTo("AAPL");
-            assertThat(savedTx.getCurrency()).isEqualTo("USD");
-            assertThat(savedTx.getQuantity()).isEqualByComparingTo("10");
 
             // Verify activity was recorded
             verify(activityService).recordAdded(
@@ -140,10 +133,13 @@ class TransactionServiceTest {
             when(portfolioItemRepository.findByAssetTypeAndSymbolAndCurrency(
                     AssetType.STOCK, "AAPL", "USD")).thenReturn(Optional.of(existingItem));
 
-            TransactionRecord savedRecord = new TransactionRecord(
-                    TransactionType.BUY, AssetType.STOCK, "AAPL",
+            PortfolioLedgerEntry ledgerEntry = new PortfolioLedgerEntry(
+                    PortfolioActivityAction.ADDED, AssetType.STOCK, "AAPL",
                     new BigDecimal("5"), new BigDecimal("200.00"), "USD", NOW);
-            when(transactionRepository.save(any(TransactionRecord.class))).thenReturn(savedRecord);
+            when(activityService.recordAdded(
+                    eq(AssetType.STOCK), eq("AAPL"), eq(new BigDecimal("5")),
+                    eq(new BigDecimal("200.00")), eq("USD"), eq(NOW)))
+                    .thenReturn(ledgerEntry);
 
             transactionService.create(request);
 
@@ -165,10 +161,13 @@ class TransactionServiceTest {
             when(portfolioItemRepository.findByAssetTypeAndSymbolAndCurrency(
                     AssetType.STOCK, "TSLA", "USD")).thenReturn(Optional.empty());
 
-            TransactionRecord savedRecord = new TransactionRecord(
-                    TransactionType.BUY, AssetType.STOCK, "TSLA",
+            PortfolioLedgerEntry ledgerEntry = new PortfolioLedgerEntry(
+                    PortfolioActivityAction.ADDED, AssetType.STOCK, "TSLA",
                     new BigDecimal("4"), new BigDecimal("250.00"), "USD", NOW);
-            when(transactionRepository.save(any(TransactionRecord.class))).thenReturn(savedRecord);
+            when(activityService.recordAdded(
+                    eq(AssetType.STOCK), eq("TSLA"), eq(new BigDecimal("4")),
+                    eq(new BigDecimal("250.00")), eq("USD"), eq(NOW)))
+                    .thenReturn(ledgerEntry);
 
             transactionService.create(request);
 
@@ -192,10 +191,13 @@ class TransactionServiceTest {
 
             when(exchangeRateClient.isKnownCurrency("EUR")).thenReturn(true);
 
-            TransactionRecord savedRecord = new TransactionRecord(
-                    TransactionType.BUY, AssetType.CASH, "EUR",
+            PortfolioLedgerEntry ledgerEntry = new PortfolioLedgerEntry(
+                    PortfolioActivityAction.ADDED, AssetType.CASH, "EUR",
                     new BigDecimal("1000"), new BigDecimal("1.00"), "EUR", NOW);
-            when(transactionRepository.save(any(TransactionRecord.class))).thenReturn(savedRecord);
+            when(activityService.recordAdded(
+                    eq(AssetType.CASH), eq("EUR"), eq(new BigDecimal("1000")),
+                    eq(new BigDecimal("1.00")), eq("EUR"), eq(NOW)))
+                    .thenReturn(ledgerEntry);
 
             when(portfolioItemRepository.findByAssetTypeAndSymbolAndCurrency(
                     AssetType.CASH, "EUR", "EUR")).thenReturn(Optional.empty());
@@ -220,7 +222,8 @@ class TransactionServiceTest {
                     .isInstanceOf(UnknownCurrencyException.class)
                     .hasMessageContaining("XXX");
 
-            verify(transactionRepository, never()).save(any());
+            verify(activityService, never()).recordAdded(
+                    any(), any(), any(), any(), any(), any());
         }
 
         @Test
@@ -232,10 +235,13 @@ class TransactionServiceTest {
 
             when(exchangeRateClient.isKnownCurrency("USD")).thenReturn(true);
 
-            TransactionRecord savedRecord = new TransactionRecord(
-                    TransactionType.BUY, AssetType.CASH, "USDHOLDING",
+            PortfolioLedgerEntry ledgerEntry = new PortfolioLedgerEntry(
+                    PortfolioActivityAction.ADDED, AssetType.CASH, "USDHOLDING",
                     new BigDecimal("5000"), new BigDecimal("1.00"), "USD", NOW);
-            when(transactionRepository.save(any(TransactionRecord.class))).thenReturn(savedRecord);
+            when(activityService.recordAdded(
+                    eq(AssetType.CASH), eq("USDHOLDING"), eq(new BigDecimal("5000")),
+                    eq(new BigDecimal("1.00")), eq("USD"), eq(NOW)))
+                    .thenReturn(ledgerEntry);
 
             when(portfolioItemRepository.findByAssetTypeAndSymbolAndCurrency(
                     AssetType.CASH, "USDHOLDING", "USD")).thenReturn(Optional.empty());
@@ -260,10 +266,13 @@ class TransactionServiceTest {
             when(portfolioItemRepository.findByAssetTypeAndSymbolAndCurrency(
                     AssetType.STOCK, "AAPL", "USD")).thenReturn(Optional.empty());
 
-            TransactionRecord savedRecord = new TransactionRecord(
-                    TransactionType.BUY, AssetType.STOCK, "AAPL",
+            PortfolioLedgerEntry ledgerEntry = new PortfolioLedgerEntry(
+                    PortfolioActivityAction.ADDED, AssetType.STOCK, "AAPL",
                     new BigDecimal("1"), new BigDecimal("195.00"), "USD", NOW);
-            when(transactionRepository.save(any(TransactionRecord.class))).thenReturn(savedRecord);
+            when(activityService.recordAdded(
+                    eq(AssetType.STOCK), eq("AAPL"), eq(new BigDecimal("1")),
+                    eq(new BigDecimal("195.00")), eq("USD"), eq(NOW)))
+                    .thenReturn(ledgerEntry);
 
             TransactionResponse response = transactionService.create(request);
 
@@ -278,9 +287,9 @@ class TransactionServiceTest {
     class FindByType {
 
         @Test
-        @DisplayName("returns empty list when no transactions of type exist")
+        @DisplayName("returns empty list when no purchases exist")
         void returnsEmptyList() {
-            when(transactionRepository.findByTransactionTypeOrderByTransactedAtDesc(TransactionType.BUY))
+            when(activityService.findPurchasesNewestFirst())
                     .thenReturn(List.of());
 
             List<TransactionResponse> result = transactionService.findByType(TransactionType.BUY);
@@ -289,18 +298,18 @@ class TransactionServiceTest {
         }
 
         @Test
-        @DisplayName("returns transactions mapped to response DTOs sorted by transacted date descending")
+        @DisplayName("returns purchases mapped to response DTOs sorted newest first")
         void returnsTransactionHistory() {
             Instant earlier = NOW.minusSeconds(3600);
-            TransactionRecord tx1 = new TransactionRecord(
-                    TransactionType.BUY, AssetType.STOCK, "AAPL",
+            PortfolioLedgerEntry entry1 = new PortfolioLedgerEntry(
+                    PortfolioActivityAction.ADDED, AssetType.STOCK, "AAPL",
                     new BigDecimal("10"), new BigDecimal("195.00"), "USD", earlier);
-            TransactionRecord tx2 = new TransactionRecord(
-                    TransactionType.BUY, AssetType.STOCK, "TSLA",
+            PortfolioLedgerEntry entry2 = new PortfolioLedgerEntry(
+                    PortfolioActivityAction.ADDED, AssetType.STOCK, "TSLA",
                     new BigDecimal("4"), new BigDecimal("250.00"), "USD", NOW);
 
-            when(transactionRepository.findByTransactionTypeOrderByTransactedAtDesc(TransactionType.BUY))
-                    .thenReturn(List.of(tx2, tx1)); // newest first
+            when(activityService.findPurchasesNewestFirst())
+                    .thenReturn(List.of(entry2, entry1)); // newest first
 
             List<TransactionResponse> result = transactionService.findByType(TransactionType.BUY);
 
@@ -311,14 +320,12 @@ class TransactionServiceTest {
         }
 
         @Test
-        @DisplayName("can query SELL history even when empty (reserved path)")
-        void canQuerySellHistory() {
-            when(transactionRepository.findByTransactionTypeOrderByTransactedAtDesc(TransactionType.SELL))
-                    .thenReturn(List.of());
-
+        @DisplayName("returns empty for non-BUY types without querying repository")
+        void returnsEmptyForSellType() {
             List<TransactionResponse> result = transactionService.findByType(TransactionType.SELL);
 
             assertThat(result).isEmpty();
+            verify(activityService, never()).findPurchasesNewestFirst();
         }
     }
 }
