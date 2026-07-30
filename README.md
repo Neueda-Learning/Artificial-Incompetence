@@ -219,6 +219,13 @@ The React development server proxies `/api` requests to
 
 ## Tests
 
+The repository contains **255 automated test cases**:
+
+- **Backend:** 150 tests (JUnit + Spring Boot Test, including service and integration-style controller tests)
+- **Frontend:** 105 tests (Jest + React Testing Library for components, service adapters, and utilities)
+
+For detailed per-module coverage, see [TEST_DOCUMENTATION.md](./TEST_DOCUMENTATION.md).
+
 Run backend tests:
 
 ```bash
