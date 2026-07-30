@@ -40,9 +40,6 @@ class TransactionControllerIntegrationTest {
     private WebApplicationContext webApplicationContext;
 
     @Autowired
-    private TransactionRepository transactionRepository;
-
-    @Autowired
     private PortfolioItemRepository portfolioItemRepository;
 
     @Autowired
@@ -62,7 +59,6 @@ class TransactionControllerIntegrationTest {
     @BeforeEach
     void setUp() {
         jdbcTemplate.update("DELETE FROM portfolio_activities");
-        transactionRepository.deleteAll();
         portfolioItemRepository.deleteAll();
         when(exchangeRateClient.isKnownCurrency(anyString())).thenReturn(true);
         when(assetMetadataClient.findBySymbol(anyString()))
@@ -421,11 +417,11 @@ class TransactionControllerIntegrationTest {
     }
 
     /**
-     * 中文：验证清仓删除持仓时，同步删除该资产的全部购买历史。
-     * English: Verifies full holding removal also deletes all buy history for that asset.
+     * 中文：验证清仓后购买流水仍保留在统一活动账本中。
+     * English: Verifies purchase history remains in the unified activity ledger after full removal.
      */
     @Test
-    void shouldDeleteBuyHistoryAfterPortfolioItemDeleted() throws Exception {
+    void shouldKeepBuyHistoryAfterPortfolioItemDeleted() throws Exception {
         mockMvc.perform(post("/api/transactions")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -452,7 +448,8 @@ class TransactionControllerIntegrationTest {
 
         mockMvc.perform(get("/api/transactions").queryParam("type", "BUY"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(0));
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].symbol").value("AAPL"));
 
         mockMvc.perform(get("/api/portfolio/activities"))
                 .andExpect(status().isOk())

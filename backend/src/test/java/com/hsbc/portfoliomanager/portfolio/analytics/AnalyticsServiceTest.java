@@ -2,12 +2,12 @@ package com.hsbc.portfoliomanager.portfolio.analytics;
 
 import com.hsbc.portfoliomanager.marketdata.MarketDataService;
 import com.hsbc.portfoliomanager.marketdata.MarketDataService.PriceData;
+import com.hsbc.portfoliomanager.portfolio.activity.PortfolioActivityAction;
+import com.hsbc.portfoliomanager.portfolio.activity.PortfolioActivityService;
+import com.hsbc.portfoliomanager.portfolio.activity.PortfolioLedgerEntry;
 import com.hsbc.portfoliomanager.portfolio.holding.AssetType;
 import com.hsbc.portfoliomanager.portfolio.holding.PortfolioItem;
 import com.hsbc.portfoliomanager.portfolio.holding.PortfolioItemRepository;
-import com.hsbc.portfoliomanager.portfolio.transaction.TransactionRecord;
-import com.hsbc.portfoliomanager.portfolio.transaction.TransactionRepository;
-import com.hsbc.portfoliomanager.portfolio.transaction.TransactionType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -37,7 +37,7 @@ class AnalyticsServiceTest {
     private PortfolioItemRepository portfolioItemRepository;
 
     @Mock
-    private TransactionRepository transactionRepository;
+    private PortfolioActivityService activityService;
 
     @Mock
     private MarketDataService marketDataService;
@@ -49,7 +49,7 @@ class AnalyticsServiceTest {
     @BeforeEach
     void setUp() {
         analyticsService = new AnalyticsService(
-                portfolioItemRepository, transactionRepository, marketDataService);
+                portfolioItemRepository, activityService, marketDataService);
     }
 
     // ── US-06: Portfolio Value ────────────────────────────────────────────
@@ -174,12 +174,12 @@ class AnalyticsServiceTest {
         void singleAssetWithGain() {
             PortfolioItem aapl = new PortfolioItem(AssetType.STOCK, "AAPL", new BigDecimal("10"));
 
-            TransactionRecord buy = new TransactionRecord(
-                    TransactionType.BUY, AssetType.STOCK, "AAPL",
+            PortfolioLedgerEntry buy = new PortfolioLedgerEntry(
+                    PortfolioActivityAction.ADDED, AssetType.STOCK, "AAPL",
                     new BigDecimal("10"), new BigDecimal("180.50"), "USD", NOW.minusSeconds(86400));
 
             when(portfolioItemRepository.findAll()).thenReturn(List.of(aapl));
-            when(transactionRepository.findByTransactionTypeOrderByTransactedAtDesc(TransactionType.BUY))
+            when(activityService.findLedgerOldestFirst())
                     .thenReturn(List.of(buy));
             when(marketDataService.getCurrentPrice("AAPL"))
                     .thenReturn(Optional.of(new PriceData(
@@ -228,18 +228,18 @@ class AnalyticsServiceTest {
             PortfolioItem aapl = new PortfolioItem(AssetType.STOCK, "AAPL", new BigDecimal("15"));
 
             // First purchase: 10 shares @ $180 = $1800
-            TransactionRecord buy1 = new TransactionRecord(
-                    TransactionType.BUY, AssetType.STOCK, "AAPL",
+            PortfolioLedgerEntry buy1 = new PortfolioLedgerEntry(
+                    PortfolioActivityAction.ADDED, AssetType.STOCK, "AAPL",
                     new BigDecimal("10"), new BigDecimal("180.00"), "USD", NOW.minusSeconds(172800));
             // Second purchase: 5 shares @ $190 = $950
-            TransactionRecord buy2 = new TransactionRecord(
-                    TransactionType.BUY, AssetType.STOCK, "AAPL",
+            PortfolioLedgerEntry buy2 = new PortfolioLedgerEntry(
+                    PortfolioActivityAction.ADDED, AssetType.STOCK, "AAPL",
                     new BigDecimal("5"), new BigDecimal("190.00"), "USD", NOW.minusSeconds(86400));
 
             // Weighted avg: (1800 + 950) / 15 = 2750 / 15 = 183.333333
 
             when(portfolioItemRepository.findAll()).thenReturn(List.of(aapl));
-            when(transactionRepository.findByTransactionTypeOrderByTransactedAtDesc(TransactionType.BUY))
+            when(activityService.findLedgerOldestFirst())
                     .thenReturn(List.of(buy1, buy2));
             when(marketDataService.getCurrentPrice("AAPL"))
                     .thenReturn(Optional.of(new PriceData("AAPL", new BigDecimal("200.00"), "USD", NOW)));
@@ -264,16 +264,65 @@ class AnalyticsServiceTest {
         }
 
         @Test
+        @DisplayName("rebuilds remaining cost from added and removed activity")
+        void costAfterPartialRemoval() {
+            PortfolioItem aapl = new PortfolioItem(
+                    AssetType.STOCK,
+                    "AAPL",
+                    new BigDecimal("6")
+            );
+            PortfolioLedgerEntry purchase = new PortfolioLedgerEntry(
+                    PortfolioActivityAction.ADDED,
+                    AssetType.STOCK,
+                    "AAPL",
+                    new BigDecimal("10"),
+                    new BigDecimal("100"),
+                    "USD",
+                    NOW.minusSeconds(86400)
+            );
+            PortfolioLedgerEntry removal = new PortfolioLedgerEntry(
+                    null,
+                    PortfolioActivityAction.REMOVED,
+                    AssetType.STOCK,
+                    "AAPL",
+                    new BigDecimal("4"),
+                    null,
+                    "USD",
+                    new BigDecimal("6"),
+                    NOW
+            );
+
+            when(portfolioItemRepository.findAll()).thenReturn(List.of(aapl));
+            when(activityService.findLedgerOldestFirst())
+                    .thenReturn(List.of(purchase, removal));
+            when(marketDataService.getCurrentPrice("AAPL"))
+                    .thenReturn(Optional.of(new PriceData(
+                            "AAPL",
+                            new BigDecimal("120"),
+                            "USD",
+                            NOW
+                    )));
+
+            PortfolioPerformanceResponse response = analyticsService.calculatePerformance();
+
+            assertThat(response.totalCost()).isEqualByComparingTo("600");
+            assertThat(response.currentValue()).isEqualByComparingTo("720");
+            assertThat(response.unrealizedProfitLoss()).isEqualByComparingTo("120");
+            assertThat(response.assets().get(0).averageCost())
+                    .isEqualByComparingTo("100");
+        }
+
+        @Test
         @DisplayName("shows unrealized loss when current price is below average cost")
         void unrealizedLoss() {
             PortfolioItem aapl = new PortfolioItem(AssetType.STOCK, "AAPL", new BigDecimal("10"));
 
-            TransactionRecord buy = new TransactionRecord(
-                    TransactionType.BUY, AssetType.STOCK, "AAPL",
+            PortfolioLedgerEntry buy = new PortfolioLedgerEntry(
+                    PortfolioActivityAction.ADDED, AssetType.STOCK, "AAPL",
                     new BigDecimal("10"), new BigDecimal("200.00"), "USD", NOW.minusSeconds(86400));
 
             when(portfolioItemRepository.findAll()).thenReturn(List.of(aapl));
-            when(transactionRepository.findByTransactionTypeOrderByTransactedAtDesc(TransactionType.BUY))
+            when(activityService.findLedgerOldestFirst())
                     .thenReturn(List.of(buy));
             when(marketDataService.getCurrentPrice("AAPL"))
                     .thenReturn(Optional.of(new PriceData("AAPL", new BigDecimal("180.00"), "USD", NOW)));
@@ -313,7 +362,7 @@ class AnalyticsServiceTest {
             PortfolioItem aapl = new PortfolioItem(AssetType.STOCK, "AAPL", new BigDecimal("10"));
 
             when(portfolioItemRepository.findAll()).thenReturn(List.of(aapl));
-            when(transactionRepository.findByTransactionTypeOrderByTransactedAtDesc(TransactionType.BUY))
+            when(activityService.findLedgerOldestFirst())
                     .thenReturn(List.of());  // no transactions
             when(marketDataService.getCurrentPrice("AAPL"))
                     .thenReturn(Optional.of(new PriceData("AAPL", new BigDecimal("195.00"), "USD", NOW)));
@@ -339,15 +388,15 @@ class AnalyticsServiceTest {
             PortfolioItem aapl = new PortfolioItem(AssetType.STOCK, "AAPL", new BigDecimal("10"));
             PortfolioItem tsla = new PortfolioItem(AssetType.STOCK, "TSLA", new BigDecimal("4"));
 
-            TransactionRecord buyAapl = new TransactionRecord(
-                    TransactionType.BUY, AssetType.STOCK, "AAPL",
+            PortfolioLedgerEntry buyAapl = new PortfolioLedgerEntry(
+                    PortfolioActivityAction.ADDED, AssetType.STOCK, "AAPL",
                     new BigDecimal("10"), new BigDecimal("180.00"), "USD", NOW);
-            TransactionRecord buyTsla = new TransactionRecord(
-                    TransactionType.BUY, AssetType.STOCK, "TSLA",
+            PortfolioLedgerEntry buyTsla = new PortfolioLedgerEntry(
+                    PortfolioActivityAction.ADDED, AssetType.STOCK, "TSLA",
                     new BigDecimal("4"), new BigDecimal("250.00"), "USD", NOW);
 
             when(portfolioItemRepository.findAll()).thenReturn(List.of(aapl, tsla));
-            when(transactionRepository.findByTransactionTypeOrderByTransactedAtDesc(TransactionType.BUY))
+            when(activityService.findLedgerOldestFirst())
                     .thenReturn(List.of(buyAapl, buyTsla));
             when(marketDataService.getCurrentPrice("AAPL"))
                     .thenReturn(Optional.of(new PriceData("AAPL", new BigDecimal("200.00"), "USD", NOW)));
@@ -375,15 +424,15 @@ class AnalyticsServiceTest {
             PortfolioItem aapl = new PortfolioItem(AssetType.STOCK, "AAPL", new BigDecimal("10"));
             PortfolioItem msft = new PortfolioItem(AssetType.STOCK, "MSFT", new BigDecimal("5"));
 
-            TransactionRecord buyAapl = new TransactionRecord(
-                    TransactionType.BUY, AssetType.STOCK, "AAPL",
+            PortfolioLedgerEntry buyAapl = new PortfolioLedgerEntry(
+                    PortfolioActivityAction.ADDED, AssetType.STOCK, "AAPL",
                     new BigDecimal("10"), new BigDecimal("180.00"), "USD", NOW);
-            TransactionRecord buyMsft = new TransactionRecord(
-                    TransactionType.BUY, AssetType.STOCK, "MSFT",
+            PortfolioLedgerEntry buyMsft = new PortfolioLedgerEntry(
+                    PortfolioActivityAction.ADDED, AssetType.STOCK, "MSFT",
                     new BigDecimal("5"), new BigDecimal("400.00"), "USD", NOW);
 
             when(portfolioItemRepository.findAll()).thenReturn(List.of(aapl, msft));
-            when(transactionRepository.findByTransactionTypeOrderByTransactedAtDesc(TransactionType.BUY))
+            when(activityService.findLedgerOldestFirst())
                     .thenReturn(List.of(buyAapl, buyMsft));
             when(marketDataService.getCurrentPrice("AAPL"))
                     .thenReturn(Optional.of(new PriceData("AAPL", new BigDecimal("195.00"), "USD", NOW)));
@@ -412,7 +461,7 @@ class AnalyticsServiceTest {
             Instant later = NOW;
 
             when(portfolioItemRepository.findAll()).thenReturn(List.of(aapl, tsla));
-            when(transactionRepository.findByTransactionTypeOrderByTransactedAtDesc(TransactionType.BUY))
+            when(activityService.findLedgerOldestFirst())
                     .thenReturn(List.of());
             when(marketDataService.getCurrentPrice("AAPL"))
                     .thenReturn(Optional.of(new PriceData("AAPL", new BigDecimal("195.00"), "USD", earlier)));

@@ -2,12 +2,12 @@ package com.hsbc.portfoliomanager.portfolio.analytics;
 
 import com.hsbc.portfoliomanager.marketdata.HistoricalMarketDataService;
 import com.hsbc.portfoliomanager.marketdata.HistoricalMarketDataService.PricePoint;
+import com.hsbc.portfoliomanager.portfolio.activity.PortfolioActivityAction;
+import com.hsbc.portfoliomanager.portfolio.activity.PortfolioActivityService;
+import com.hsbc.portfoliomanager.portfolio.activity.PortfolioLedgerEntry;
 import com.hsbc.portfoliomanager.portfolio.holding.AssetType;
 import com.hsbc.portfoliomanager.portfolio.holding.PortfolioItem;
 import com.hsbc.portfoliomanager.portfolio.holding.PortfolioItemRepository;
-import com.hsbc.portfoliomanager.portfolio.transaction.TransactionRecord;
-import com.hsbc.portfoliomanager.portfolio.transaction.TransactionRepository;
-import com.hsbc.portfoliomanager.portfolio.transaction.TransactionType;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -33,7 +33,7 @@ class HistoricalPerformanceService {
     private static final int PRICE_LOOKBACK_DAYS = 7;
 
     private final PortfolioItemRepository portfolioItemRepository;
-    private final TransactionRepository transactionRepository;
+    private final PortfolioActivityService activityService;
     private final HistoricalMarketDataService historicalMarketDataService;
 
     /**
@@ -42,11 +42,11 @@ class HistoricalPerformanceService {
      */
     HistoricalPerformanceService(
             PortfolioItemRepository portfolioItemRepository,
-            TransactionRepository transactionRepository,
+            PortfolioActivityService activityService,
             HistoricalMarketDataService historicalMarketDataService
     ) {
         this.portfolioItemRepository = portfolioItemRepository;
-        this.transactionRepository = transactionRepository;
+        this.activityService = activityService;
         this.historicalMarketDataService = historicalMarketDataService;
     }
 
@@ -57,7 +57,7 @@ class HistoricalPerformanceService {
     HistoricalPerformanceResponse calculate(String requestedRange) {
         String range = normalizeRange(requestedRange);
         LocalDate endDate = LocalDate.now(ZoneOffset.UTC);
-        List<TransactionRecord> transactions = transactionRepository.findAllByOrderByTransactedAtAsc();
+        List<PortfolioLedgerEntry> transactions = activityService.findLedgerOldestFirst();
 
         if (transactions.isEmpty()) {
             LocalDate startDate = startDate(range, endDate, null);
@@ -79,11 +79,11 @@ class HistoricalPerformanceService {
 
         Map<AssetKey, String> exchanges = exchangesByAsset();
         Set<AssetKey> assets = new LinkedHashSet<>();
-        for (TransactionRecord transaction : transactions) {
+        for (PortfolioLedgerEntry transaction : transactions) {
             assets.add(new AssetKey(
-                    transaction.getAssetType(),
-                    transaction.getSymbol(),
-                    transaction.getCurrency()
+                    transaction.assetType(),
+                    transaction.symbol(),
+                    transaction.currency()
             ));
         }
 
@@ -283,40 +283,40 @@ class HistoricalPerformanceService {
      */
     private void applyTransaction(
             Map<AssetKey, PositionState> positions,
-            TransactionRecord transaction,
+            PortfolioLedgerEntry transaction,
             Set<String> missingData
     ) {
         AssetKey key = new AssetKey(
-                transaction.getAssetType(),
-                transaction.getSymbol(),
-                transaction.getCurrency()
+                transaction.assetType(),
+                transaction.symbol(),
+                transaction.currency()
         );
         PositionState position = positions.computeIfAbsent(key, ignored -> new PositionState());
 
-        if (transaction.getTransactionType() == TransactionType.BUY) {
+        if (transaction.action() == PortfolioActivityAction.ADDED) {
             LocalDate date = transactionDate(transaction);
-            var rate = historicalMarketDataService.getRateToUsd(transaction.getCurrency(), date);
-            position.quantity = position.quantity.add(transaction.getQuantity());
-            if (rate.isEmpty()) {
+            var rate = historicalMarketDataService.getRateToUsd(transaction.currency(), date);
+            position.quantity = position.quantity.add(transaction.quantity());
+            if (rate.isEmpty() || transaction.pricePerUnit() == null) {
                 position.costKnown = false;
-                missingData.add(transaction.getCurrency() + "/USD:" + date);
+                missingData.add(transaction.currency() + "/USD:" + date);
                 return;
             }
             position.costBasisUsd = position.costBasisUsd.add(
-                    transaction.getPricePerUnit()
-                            .multiply(transaction.getQuantity())
+                    transaction.pricePerUnit()
+                            .multiply(transaction.quantity())
                             .multiply(rate.get())
             );
             return;
         }
 
         if (position.quantity.signum() <= 0) {
-            missingData.add(transaction.getSymbol() + ":INVALID_SELL_HISTORY");
+            missingData.add(transaction.symbol() + ":INVALID_REMOVAL_HISTORY");
             position.costKnown = false;
             return;
         }
 
-        BigDecimal soldQuantity = transaction.getQuantity().min(position.quantity);
+        BigDecimal soldQuantity = transaction.quantity().min(position.quantity);
         if (position.costKnown) {
             BigDecimal averageCost = position.costBasisUsd.divide(
                     position.quantity,
@@ -349,8 +349,8 @@ class HistoricalPerformanceService {
      * 中文：将交易时间转换为 UTC 日期。
      * English: Converts a transaction timestamp into a UTC calendar date.
      */
-    private static LocalDate transactionDate(TransactionRecord transaction) {
-        return transaction.getTransactedAt().atZone(ZoneOffset.UTC).toLocalDate();
+    private static LocalDate transactionDate(PortfolioLedgerEntry transaction) {
+        return transaction.occurredAt().atZone(ZoneOffset.UTC).toLocalDate();
     }
 
     /**
@@ -359,14 +359,14 @@ class HistoricalPerformanceService {
      */
     private static LocalDate firstBuyDate(
             AssetKey asset,
-            List<TransactionRecord> transactions
+            List<PortfolioLedgerEntry> transactions
     ) {
         return transactions.stream()
-                .filter(transaction -> transaction.getTransactionType() == TransactionType.BUY)
+                .filter(transaction -> transaction.action() == PortfolioActivityAction.ADDED)
                 .filter(transaction -> new AssetKey(
-                        transaction.getAssetType(),
-                        transaction.getSymbol(),
-                        transaction.getCurrency()
+                        transaction.assetType(),
+                        transaction.symbol(),
+                        transaction.currency()
                 ).equals(asset))
                 .map(HistoricalPerformanceService::transactionDate)
                 .min(LocalDate::compareTo)

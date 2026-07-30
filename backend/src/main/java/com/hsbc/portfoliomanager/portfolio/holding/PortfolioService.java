@@ -1,7 +1,6 @@
 package com.hsbc.portfoliomanager.portfolio.holding;
 
 import com.hsbc.portfoliomanager.portfolio.activity.PortfolioActivityService;
-import com.hsbc.portfoliomanager.portfolio.transaction.TransactionRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,7 +14,6 @@ class PortfolioService {
 
     private final PortfolioItemRepository repository;
     private final AssetMetadataClient assetMetadataClient;
-    private final TransactionRepository transactionRepository;
     private final PortfolioActivityService activityService;
 
     /**
@@ -25,12 +23,10 @@ class PortfolioService {
     PortfolioService(
             PortfolioItemRepository repository,
             AssetMetadataClient assetMetadataClient,
-            TransactionRepository transactionRepository,
             PortfolioActivityService activityService
     ) {
         this.repository = repository;
         this.assetMetadataClient = assetMetadataClient;
-        this.transactionRepository = transactionRepository;
         this.activityService = activityService;
     }
 
@@ -112,8 +108,8 @@ class PortfolioService {
     }
 
     /**
-     * 中文：清仓时在同一数据库事务中删除该资产的全部交易历史及当前持仓。
-     * English: On full removal, deletes all transaction history and current holding rows in one database transaction.
+     * 中文：清仓时记录移除流水并删除当前持仓，活动账本作为不可变历史保留。
+     * English: On full removal, records the removal and deletes current holdings while retaining the immutable ledger.
      */
     @Transactional
     void delete(Long id) {
@@ -136,10 +132,6 @@ class PortfolioService {
                 Instant.now()
         );
 
-        transactionRepository.deleteByAssetTypeAndSymbol(
-                target.getAssetType(),
-                target.getSymbol()
-        );
         repository.deleteAll(matchingItems);
     }
 }

@@ -4,12 +4,10 @@ import com.hsbc.portfoliomanager.marketdata.MarketDataService;
 import com.hsbc.portfoliomanager.marketdata.MarketDataService.PriceData;
 import com.hsbc.portfoliomanager.marketdata.HistoricalMarketDataService;
 import com.hsbc.portfoliomanager.marketdata.HistoricalMarketDataService.PricePoint;
+import com.hsbc.portfoliomanager.portfolio.activity.PortfolioActivityService;
 import com.hsbc.portfoliomanager.portfolio.holding.AssetType;
 import com.hsbc.portfoliomanager.portfolio.holding.PortfolioItem;
 import com.hsbc.portfoliomanager.portfolio.holding.PortfolioItemRepository;
-import com.hsbc.portfoliomanager.portfolio.transaction.TransactionRecord;
-import com.hsbc.portfoliomanager.portfolio.transaction.TransactionRepository;
-import com.hsbc.portfoliomanager.portfolio.transaction.TransactionType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -17,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -53,7 +52,10 @@ class AnalyticsControllerIntegrationTest {
     private PortfolioItemRepository portfolioItemRepository;
 
     @Autowired
-    private TransactionRepository transactionRepository;
+    private PortfolioActivityService activityService;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @MockitoBean
     private MarketDataService marketDataService;
@@ -64,7 +66,7 @@ class AnalyticsControllerIntegrationTest {
     @BeforeEach
     void setUp() {
         mockMvc = MockMvcBuilders.webAppContextSetup(context).build();
-        transactionRepository.deleteAll();
+        jdbcTemplate.update("DELETE FROM portfolio_activities");
         portfolioItemRepository.deleteAll();
     }
 
@@ -138,10 +140,14 @@ class AnalyticsControllerIntegrationTest {
             portfolioItemRepository.save(
                     new PortfolioItem(AssetType.STOCK, "AAPL", new BigDecimal("10")));
 
-            transactionRepository.save(new TransactionRecord(
-                    TransactionType.BUY, AssetType.STOCK, "AAPL",
-                    new BigDecimal("10"), new BigDecimal("180.50"), "USD",
-                    Instant.now().minusSeconds(86400)));
+            activityService.recordAdded(
+                    AssetType.STOCK,
+                    "AAPL",
+                    new BigDecimal("10"),
+                    new BigDecimal("180.50"),
+                    "USD",
+                    Instant.now().minusSeconds(86400)
+            );
 
             when(marketDataService.getCurrentPrice("AAPL"))
                     .thenReturn(java.util.Optional.of(
@@ -222,15 +228,14 @@ class AnalyticsControllerIntegrationTest {
                     new BigDecimal("10"),
                     "USD"
             ));
-            transactionRepository.save(new TransactionRecord(
-                    TransactionType.BUY,
+            activityService.recordAdded(
                     AssetType.STOCK,
                     "AAPL",
                     new BigDecimal("10"),
                     new BigDecimal("180.00"),
                     "USD",
                     today.minusDays(2).atStartOfDay().toInstant(ZoneOffset.UTC)
-            ));
+            );
 
             when(historicalMarketDataService.getDailyPrices(
                     eq(AssetType.STOCK),

@@ -33,7 +33,7 @@ public class PortfolioActivityService {
      * English: Records an added activity inside the asset-purchase transaction.
      */
     @Transactional
-    public void recordAdded(
+    public PortfolioLedgerEntry recordAdded(
             AssetType assetType,
             String symbol,
             BigDecimal quantity,
@@ -41,7 +41,7 @@ public class PortfolioActivityService {
             String currency,
             Instant occurredAt
     ) {
-        repository.save(new PortfolioActivity(
+        PortfolioActivity saved = repository.save(new PortfolioActivity(
                 PortfolioActivityAction.ADDED,
                 assetType,
                 symbol,
@@ -51,6 +51,7 @@ public class PortfolioActivityService {
                 null,
                 occurredAt
         ));
+        return PortfolioLedgerEntry.from(saved);
     }
 
     /**
@@ -76,5 +77,29 @@ public class PortfolioActivityService {
                 remainingQuantity,
                 occurredAt
         ));
+    }
+
+    /**
+     * 中文：返回全部流水并按发生时间正序排列，用于重建当前成本和历史表现。
+     * English: Returns the complete ledger in chronological order for current-cost and historical reconstruction.
+     */
+    @Transactional(readOnly = true)
+    public List<PortfolioLedgerEntry> findLedgerOldestFirst() {
+        return repository.findAllByOrderByOccurredAtAscIdAsc().stream()
+                .map(PortfolioLedgerEntry::from)
+                .toList();
+    }
+
+    /**
+     * 中文：只返回新增/购买流水并按时间倒序排列，用于兼容购买历史接口。
+     * English: Returns added/purchase entries newest first for the compatible purchase-history API.
+     */
+    @Transactional(readOnly = true)
+    public List<PortfolioLedgerEntry> findPurchasesNewestFirst() {
+        return repository.findAllByActionOrderByOccurredAtDescIdDesc(
+                        PortfolioActivityAction.ADDED
+                ).stream()
+                .map(PortfolioLedgerEntry::from)
+                .toList();
     }
 }
