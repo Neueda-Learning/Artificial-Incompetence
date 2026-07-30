@@ -80,7 +80,13 @@ class AnalyticsControllerIntegrationTest {
 
             when(marketDataService.getCurrentPrice("AAPL"))
                     .thenReturn(java.util.Optional.of(
-                            new PriceData("AAPL", new BigDecimal("195.00"), "USD", Instant.now())));
+                            new PriceData(
+                                    "AAPL",
+                                    new BigDecimal("195.00"),
+                                    new BigDecimal("190.00"),
+                                    "USD",
+                                    Instant.now()
+                            )));
 
             mockMvc.perform(get("/api/portfolio/value")
                             .accept(MediaType.APPLICATION_JSON))
@@ -139,7 +145,13 @@ class AnalyticsControllerIntegrationTest {
 
             when(marketDataService.getCurrentPrice("AAPL"))
                     .thenReturn(java.util.Optional.of(
-                            new PriceData("AAPL", new BigDecimal("195.00"), "USD", Instant.now())));
+                            new PriceData(
+                                    "AAPL",
+                                    new BigDecimal("195.00"),
+                                    new BigDecimal("190.00"),
+                                    "USD",
+                                    Instant.now()
+                            )));
 
             mockMvc.perform(get("/api/portfolio/performance")
                             .accept(MediaType.APPLICATION_JSON))
@@ -149,6 +161,8 @@ class AnalyticsControllerIntegrationTest {
                     .andExpect(jsonPath("$.totalCost").value(1805.00))
                     .andExpect(jsonPath("$.currentValue").value(1950.00))
                     .andExpect(jsonPath("$.unrealizedProfitLoss").value(145.00))
+                    .andExpect(jsonPath("$.dayChange").value(50.00))
+                    .andExpect(jsonPath("$.dayChangePercentage").value(2.6316))
                     .andExpect(jsonPath("$.assets", hasSize(1)))
                     .andExpect(jsonPath("$.assets[0].symbol").value("AAPL"))
                     .andExpect(jsonPath("$.assets[0].averageCost").value(180.50))
@@ -243,6 +257,11 @@ class AnalyticsControllerIntegrationTest {
                     .andExpect(jsonPath("$.points[0].costBasis").value(1800.00))
                     .andExpect(jsonPath("$.points[0].profitLoss").value(150.00))
                     .andExpect(jsonPath("$.points[0].returnPercentage").value(8.3333))
+                    .andExpect(jsonPath("$.assets", hasSize(1)))
+                    .andExpect(jsonPath("$.assets[0].id").value("STOCK:AAPL:USD"))
+                    .andExpect(jsonPath("$.assets[0].symbol").value("AAPL"))
+                    .andExpect(jsonPath("$.assets[0].points", hasSize(1)))
+                    .andExpect(jsonPath("$.assets[0].points[0].marketValue").value(1950.00))
                     .andExpect(jsonPath("$.missingData").isEmpty());
         }
 

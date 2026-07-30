@@ -13,6 +13,30 @@ export interface CreatePortfolioItemRequest {
   quantity: number;
 }
 
+export interface UpdatePortfolioItemQuantityRequest {
+  quantity: number;
+}
+
+export interface CreateTransactionRequest {
+  transactionType: "BUY";
+  assetType: AssetType;
+  symbol: string;
+  quantity: number;
+  pricePerUnit: number;
+  currency?: string;
+  purchasedAt: string;
+}
+
+export interface Transaction {
+  id: number;
+  assetType: AssetType;
+  symbol: string;
+  quantity: number;
+  pricePerUnit: number;
+  currency: string;
+  purchasedAt: string;
+}
+
 export interface AggregatedHolding {
   symbol: string;
   assetType: AssetType;
@@ -38,6 +62,8 @@ export interface PortfolioPerformance {
   currentValue: number;
   unrealizedProfitLoss: number;
   returnPercentage: number;
+  dayChange: number | null;
+  dayChangePercentage: number | null;
   status: "COMPLETE" | "PARTIAL" | "UNAVAILABLE";
   priceUpdatedAt: string | null;
   assets: AssetPerformance[];
@@ -54,6 +80,14 @@ export interface HistoricalPerformancePoint {
   returnPercentage: number | null;
 }
 
+export interface HistoricalAssetPerformance {
+  id: string;
+  symbol: string;
+  assetType: AssetType;
+  currency: string;
+  points: HistoricalPerformancePoint[];
+}
+
 export interface HistoricalPerformance {
   currency: string;
   range: PerformanceRange;
@@ -61,6 +95,7 @@ export interface HistoricalPerformance {
   endDate: string;
   status: "COMPLETE" | "PARTIAL" | "UNAVAILABLE";
   points: HistoricalPerformancePoint[];
+  assets: HistoricalAssetPerformance[];
   missingData: string[];
 }
 
@@ -73,4 +108,6 @@ export interface ActivityRecord {
   shares: number;
   date: string;
   remainingShares?: number;
+  pricePerUnit?: number;
+  currency?: string;
 }

@@ -154,9 +154,23 @@ function Dashboard({
         </article>
         <article className="metric-card">
           <h2>Day Change</h2>
-          <p className="metric-value">—</p>
+          <p
+            className={`metric-value ${
+              performance?.dayChange == null
+                ? ""
+                : performance.dayChange >= 0
+                  ? "value-positive"
+                  : "value-negative"
+            }`}
+          >
+            {formatSignedUsd(performance?.dayChange)}
+          </p>
           <p className="metric-subtle">
-            Intraday change is not supplied by the backend.
+            {performance?.dayChangePercentage == null
+              ? "Previous-close data is currently unavailable."
+              : `${formatPercent(
+                  performance.dayChangePercentage,
+                )} since the previous market close.`}
           </p>
         </article>
         <article className="metric-card">

@@ -37,6 +37,17 @@ class MarketDataServiceImpl implements MarketDataService {
     }
 
     /**
+     * 中文：使用资产代码和交易所获取当前价格，避免国际市场代码重名。
+     * English: Retrieves current price with symbol and exchange to disambiguate international instruments.
+     */
+    @Override
+    public Optional<PriceData> getCurrentPrice(String symbol, String exchange) {
+        Optional<PriceData> result = priceService.fetchPrice(symbol, exchange);
+        lastCallSucceeded = result.isPresent();
+        return result;
+    }
+
+    /**
      * 中文：将指定币种金额转换为美元金额。
      * English: Converts an amount in the specified currency into USD.
      */

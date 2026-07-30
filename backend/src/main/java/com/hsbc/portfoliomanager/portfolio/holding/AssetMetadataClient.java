@@ -1,6 +1,6 @@
 package com.hsbc.portfoliomanager.portfolio.holding;
 
-interface AssetMetadataClient {
+public interface AssetMetadataClient {
 
     /**
      * 中文：根据资产代码查询公司名称、交易所和计价币种。

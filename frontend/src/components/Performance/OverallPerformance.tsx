@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   AggregatedHolding,
   HistoricalPerformance,
@@ -6,11 +6,11 @@ import {
   PortfolioPerformance,
 } from "../../types/portfolio";
 import {
-  formatDate,
   formatPercent,
   formatSignedUsd,
   formatUsd,
 } from "../../utils/formatters";
+import PerformanceLineChart from "./PerformanceLineChart";
 
 interface OverallPerformanceProps {
   holdings: AggregatedHolding[];
@@ -21,6 +21,8 @@ interface OverallPerformanceProps {
   historyError: string | null;
 }
 
+const OVERALL_SERIES_ID = "OVERALL";
+
 function OverallPerformance({
   holdings,
   performance,
@@ -29,102 +31,137 @@ function OverallPerformance({
   isHistoryLoading,
   historyError,
 }: OverallPerformanceProps) {
+  const [selectedSeriesId, setSelectedSeriesId] =
+    useState(OVERALL_SERIES_ID);
+
+  useEffect(() => {
+    if (
+      selectedSeriesId !== OVERALL_SERIES_ID &&
+      !history?.assets.some((asset) => asset.id === selectedSeriesId)
+    ) {
+      setSelectedSeriesId(OVERALL_SERIES_ID);
+    }
+  }, [history, selectedSeriesId]);
+
+  const selectedSeries = history?.assets.find(
+    (asset) => asset.id === selectedSeriesId,
+  );
+  const isOverall = selectedSeriesId === OVERALL_SERIES_ID;
+  const selectedCurrentPerformance = selectedSeries
+    ? performance?.assets.find(
+        (asset) => asset.symbol === selectedSeries.symbol,
+      )
+    : null;
+
   const chartPoints =
-    history?.points.filter((point) => point.marketValue != null) ?? [];
-  const values = chartPoints.map((point) => point.marketValue as number);
-  const minimumValue = values.length ? Math.min(...values) : 0;
-  const maximumValue = values.length ? Math.max(...values) : 0;
-  const valueRange = maximumValue - minimumValue;
+    (isOverall ? history?.points : selectedSeries?.points)?.filter(
+      (point) => point.marketValue != null,
+    ) ?? [];
+
+  const heading = isOverall
+    ? "Portfolio Value"
+    : `${selectedSeries?.symbol ?? "Asset"} Performance`;
+  const currentValue = isOverall
+    ? performance?.currentValue
+    : selectedCurrentPerformance?.currentValue;
+  const returnPercentage = isOverall
+    ? performance?.returnPercentage
+    : selectedCurrentPerformance?.returnPercentage;
+  const profitLoss = isOverall
+    ? performance?.unrealizedProfitLoss
+    : selectedCurrentPerformance?.unrealizedProfitLoss;
+  const costBasis = isOverall
+    ? performance?.totalCost
+    : selectedCurrentPerformance?.costBasis;
+  const missingForSelection = isOverall
+    ? history?.missingData ?? []
+    : (history?.missingData ?? []).filter((item) =>
+        item.startsWith(`${selectedSeries?.symbol}:`),
+      );
 
   return (
     <article className="panel panel-large">
-      <h3>Portfolio Value</h3>
-      <p className="subtle-text">Selected range: {selectedRange}</p>
+      <div className="performance-series-header">
+        <div>
+          <h3>{heading}</h3>
+          <p className="subtle-text">Selected range: {selectedRange}</p>
+        </div>
+        <div
+          className="series-switch"
+          role="group"
+          aria-label="Performance series"
+        >
+          <button
+            type="button"
+            className={isOverall ? "series-button active" : "series-button"}
+            onClick={() => setSelectedSeriesId(OVERALL_SERIES_ID)}
+          >
+            Overall
+          </button>
+          {history?.assets
+            .filter((asset) => asset.assetType === "STOCK")
+            .map((asset) => (
+              <button
+                key={asset.id}
+                type="button"
+                className={
+                  selectedSeriesId === asset.id
+                    ? "series-button active"
+                    : "series-button"
+                }
+                onClick={() => setSelectedSeriesId(asset.id)}
+                title={`${asset.assetType} · ${asset.currency}`}
+              >
+                {asset.symbol}
+              </button>
+            ))}
+        </div>
+      </div>
+
       <div className="metrics-grid metrics-grid-compact">
         <div className="metric-card">
-          <h4>Total Portfolio Value</h4>
-          <p className="metric-value">
-            {formatUsd(performance?.currentValue)}
-          </p>
+          <h4>{isOverall ? "Total Portfolio Value" : "Current Value"}</h4>
+          <p className="metric-value">{formatUsd(currentValue)}</p>
         </div>
         <div className="metric-card">
-          <h4>Total Return</h4>
+          <h4>{isOverall ? "Total Return" : "Asset Return"}</h4>
           <p
             className={`metric-value ${
-              (performance?.returnPercentage ?? 0) >= 0
+              (returnPercentage ?? 0) >= 0
                 ? "value-positive"
                 : "value-negative"
             }`}
           >
-            {formatPercent(performance?.returnPercentage)}
+            {formatPercent(returnPercentage)}
           </p>
         </div>
         <div className="metric-card">
           <h4>Unrealized P/L</h4>
           <p
             className={`metric-value ${
-              (performance?.unrealizedProfitLoss ?? 0) >= 0
-                ? "value-positive"
-                : "value-negative"
+              (profitLoss ?? 0) >= 0 ? "value-positive" : "value-negative"
             }`}
           >
-            {formatSignedUsd(performance?.unrealizedProfitLoss)}
+            {formatSignedUsd(profitLoss)}
           </p>
         </div>
         <div className="metric-card">
-          <h4>Total Cost Basis</h4>
-          <p className="metric-value">{formatUsd(performance?.totalCost)}</p>
+          <h4>{isOverall ? "Total Cost Basis" : "Asset Cost Basis"}</h4>
+          <p className="metric-value">{formatUsd(costBasis)}</p>
         </div>
       </div>
-      {isHistoryLoading ? (
-        <div className="performance-chart-loading" aria-label="Loading chart" />
-      ) : historyError ? (
-        <div className="chart-placeholder">
-          <p>{historyError}</p>
-        </div>
-      ) : chartPoints.length ? (
-        <div>
-          <div
-            className="performance-chart"
-            role="img"
-            aria-label={`Portfolio value history for ${selectedRange}`}
-          >
-            {chartPoints.map((point) => {
-              const normalizedHeight =
-                valueRange === 0
-                  ? 55
-                  : 18 +
-                    (((point.marketValue as number) - minimumValue) /
-                      valueRange) *
-                      72;
-              return (
-                <div
-                  key={point.date}
-                  className="performance-bar"
-                  style={{ height: `${normalizedHeight}%` }}
-                  title={`${formatDate(point.date)}: ${formatUsd(point.marketValue)}`}
-                />
-              );
-            })}
-          </div>
-          <div className="chart-axis">
-            <span>{formatDate(chartPoints[0].date)}</span>
-            <span>{formatDate(chartPoints[chartPoints.length - 1].date)}</span>
-          </div>
-        </div>
-      ) : (
-        <div className="chart-placeholder">
-          <p>No historical valuation points are available for this range.</p>
-          {history?.missingData.length ? (
-            <p className="subtle-text">
-              Missing: {history.missingData.join(", ")}
-            </p>
-          ) : null}
-        </div>
-      )}
-      {history?.status === "PARTIAL" && history.missingData.length > 0 && (
+
+      <PerformanceLineChart
+        points={chartPoints}
+        ariaLabel={`${heading} history for ${selectedRange}`}
+        isLoading={isHistoryLoading}
+        error={historyError}
+        missingData={missingForSelection}
+      />
+
+      {history?.status === "PARTIAL" && missingForSelection.length > 0 && (
         <div className="banner banner-warning">
-          Some historical data is missing: {history.missingData.join(", ")}.
+          Some historical data is missing: {missingForSelection.join(", ")}.
         </div>
       )}
       {holdings.length === 0 && (

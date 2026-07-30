@@ -99,6 +99,89 @@ class HistoricalPerformanceServiceTest {
         assertThat(response.points().get(0).profitLoss()).isEqualByComparingTo("100");
         assertThat(response.points().get(1).marketValue()).isEqualByComparingTo("1650");
         assertThat(response.points().get(1).returnPercentage()).isEqualByComparingTo("10.0000");
+        assertThat(response.assets()).hasSize(1);
+        assertThat(response.assets().get(0).symbol()).isEqualTo("MSFT");
+        assertThat(response.assets().get(0).points()).hasSize(2);
+        assertThat(response.assets().get(0).points().get(0).marketValue())
+                .isEqualByComparingTo("1600");
+    }
+
+    @Test
+    @DisplayName("returns separate historical performance series for every stock")
+    void calculatesSeparateSeriesForEveryStock() {
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+        TransactionRecord appleBuy = new TransactionRecord(
+                TransactionType.BUY,
+                AssetType.STOCK,
+                "AAPL",
+                new BigDecimal("2"),
+                new BigDecimal("180"),
+                "USD",
+                today.minusDays(3).atStartOfDay().toInstant(ZoneOffset.UTC)
+        );
+        TransactionRecord microsoftBuy = new TransactionRecord(
+                TransactionType.BUY,
+                AssetType.STOCK,
+                "MSFT",
+                new BigDecimal("3"),
+                new BigDecimal("300"),
+                "USD",
+                today.minusDays(3).atStartOfDay().toInstant(ZoneOffset.UTC)
+        );
+
+        when(transactionRepository.findAllByOrderByTransactedAtAsc())
+                .thenReturn(List.of(appleBuy, microsoftBuy));
+        when(portfolioItemRepository.findAll()).thenReturn(List.of(
+                new PortfolioItem(
+                        AssetType.STOCK,
+                        "AAPL",
+                        "Apple Inc.",
+                        "NASDAQ",
+                        new BigDecimal("2"),
+                        "USD"
+                ),
+                new PortfolioItem(
+                        AssetType.STOCK,
+                        "MSFT",
+                        "Microsoft Corp.",
+                        "NASDAQ",
+                        new BigDecimal("3"),
+                        "USD"
+                )
+        ));
+        when(historicalMarketDataService.getDailyPrices(
+                eq(AssetType.STOCK),
+                eq("AAPL"),
+                eq("NASDAQ"),
+                eq("USD"),
+                any(LocalDate.class),
+                any(LocalDate.class)
+        )).thenReturn(List.of(
+                new PricePoint("AAPL", "USD", today.minusDays(1), new BigDecimal("200"))
+        ));
+        when(historicalMarketDataService.getDailyPrices(
+                eq(AssetType.STOCK),
+                eq("MSFT"),
+                eq("NASDAQ"),
+                eq("USD"),
+                any(LocalDate.class),
+                any(LocalDate.class)
+        )).thenReturn(List.of(
+                new PricePoint("MSFT", "USD", today.minusDays(1), new BigDecimal("320"))
+        ));
+        when(historicalMarketDataService.getRateToUsd(eq("USD"), any(LocalDate.class)))
+                .thenReturn(Optional.of(BigDecimal.ONE));
+
+        HistoricalPerformanceResponse response = service.calculate("1W");
+
+        assertThat(response.points()).hasSize(1);
+        assertThat(response.points().get(0).marketValue()).isEqualByComparingTo("1360");
+        assertThat(response.assets()).extracting(HistoricalPerformanceResponse.AssetSeries::symbol)
+                .containsExactly("AAPL", "MSFT");
+        assertThat(response.assets().get(0).points().get(0).marketValue())
+                .isEqualByComparingTo("400");
+        assertThat(response.assets().get(1).points().get(0).marketValue())
+                .isEqualByComparingTo("960");
     }
 
     @Test
@@ -110,6 +193,7 @@ class HistoricalPerformanceServiceTest {
 
         assertThat(response.status()).isEqualTo("UNAVAILABLE");
         assertThat(response.points()).isEmpty();
+        assertThat(response.assets()).isEmpty();
         assertThat(response.missingData()).containsExactly("TRANSACTION_HISTORY");
         verify(historicalMarketDataService, never()).getDailyPrices(
                 any(), any(), any(), any(), any(), any()

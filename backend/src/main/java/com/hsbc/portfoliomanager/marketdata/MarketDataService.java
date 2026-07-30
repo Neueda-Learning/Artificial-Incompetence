@@ -16,6 +16,14 @@ public interface MarketDataService {
     Optional<PriceData> getCurrentPrice(String symbol);
 
     /**
+     * 中文：按资产代码和交易所获取当前价格，默认兼容只按代码查询的实现。
+     * English: Gets the current price by symbol and exchange, with a fallback for symbol-only implementations.
+     */
+    default Optional<PriceData> getCurrentPrice(String symbol, String exchange) {
+        return getCurrentPrice(symbol);
+    }
+
+    /**
      * 中文：将指定币种的金额转换为美元。
      * English: Converts an amount from its source currency into USD.
      *
@@ -31,6 +39,19 @@ public interface MarketDataService {
      */
     boolean isAvailable();
 
-    record PriceData(String symbol, BigDecimal price, String currency, Instant updatedAt) {
+    record PriceData(
+            String symbol,
+            BigDecimal price,
+            BigDecimal previousClose,
+            String currency,
+            Instant updatedAt
+    ) {
+        /**
+         * 中文：兼容只提供当前价格的调用方；此时日涨跌数据不可用。
+         * English: Preserves compatibility for callers that only provide a current price; day change is unavailable.
+         */
+        public PriceData(String symbol, BigDecimal price, String currency, Instant updatedAt) {
+            this(symbol, price, null, currency, updatedAt);
+        }
     }
 }

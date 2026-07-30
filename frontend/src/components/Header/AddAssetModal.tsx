@@ -7,6 +7,9 @@ export interface AddAssetPayload {
   assetType: AssetType;
   symbol: string;
   shares: number;
+  purchaseDate: string;
+  purchasePrice: number;
+  currency?: string;
 }
 
 interface AddAssetModalProps {
@@ -16,7 +19,13 @@ interface AddAssetModalProps {
   holdings: AggregatedHolding[];
 }
 
-const ASSET_TYPES: AssetType[] = ["STOCK", "ETF", "BOND", "CASH"];
+const ASSET_TYPES: AssetType[] = ["STOCK", "BOND", "CASH"];
+
+function todayAsInputValue(): string {
+  const now = new Date();
+  const localTime = new Date(now.getTime() - now.getTimezoneOffset() * 60_000);
+  return localTime.toISOString().slice(0, 10);
+}
 
 function isFutureDate(dateValue: string): boolean {
   if (!dateValue) {
@@ -38,8 +47,9 @@ function AddAssetModal({
   const [assetType, setAssetType] = useState<AssetType>("STOCK");
   const [symbol, setSymbol] = useState("");
   const [shares, setShares] = useState("");
-  const [purchaseDate, setPurchaseDate] = useState("");
+  const [purchaseDate, setPurchaseDate] = useState(todayAsInputValue);
   const [purchasePrice, setPurchasePrice] = useState("");
+  const [currency, setCurrency] = useState("USD");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -58,17 +68,31 @@ function AddAssetModal({
     if (!Number.isFinite(sharesValue) || sharesValue <= 0) {
       return "Shares must be greater than zero.";
     }
-    if (purchaseDate && isFutureDate(purchaseDate)) {
+    if (!purchaseDate) {
+      return "Purchase date is required.";
+    }
+    if (isFutureDate(purchaseDate)) {
       return "Purchase date cannot be in the future.";
     }
-    if (purchasePrice) {
-      const priceValue = Number(purchasePrice);
-      if (!Number.isFinite(priceValue) || priceValue <= 0) {
-        return "Purchase price must be greater than zero.";
-      }
+    const priceValue = Number(purchasePrice);
+    if (!Number.isFinite(priceValue) || priceValue <= 0) {
+      return "Purchase price must be greater than zero.";
+    }
+    if (
+      assetType !== "STOCK" &&
+      !/^[A-Za-z]{3}$/.test(currency.trim())
+    ) {
+      return "Currency must be a three-letter code such as USD or HKD.";
     }
     return null;
-  }, [normalizedSymbol, shares, purchaseDate, purchasePrice]);
+  }, [
+    normalizedSymbol,
+    shares,
+    purchaseDate,
+    purchasePrice,
+    currency,
+    assetType,
+  ]);
 
   if (!isOpen) {
     return null;
@@ -89,10 +113,15 @@ function AddAssetModal({
         assetType,
         symbol: normalizedSymbol,
         shares: Number(shares),
+        purchaseDate,
+        purchasePrice: Number(purchasePrice),
+        currency:
+          assetType === "STOCK"
+            ? undefined
+            : currency.trim().toUpperCase(),
       });
       setSuccess(message);
       setShares("");
-      setPurchaseDate("");
       setPurchasePrice("");
     } catch (submitError) {
       setError(
@@ -135,7 +164,7 @@ function AddAssetModal({
               maxLength={20}
               value={symbol}
               onChange={(event) => setSymbol(event.target.value.toUpperCase())}
-              placeholder="AAPL"
+              placeholder="AAPL or 0700"
             />
           </label>
           <label>
@@ -165,9 +194,27 @@ function AddAssetModal({
               onChange={(event) => setShares(event.target.value)}
             />
           </label>
+          {assetType !== "STOCK" && (
+            <label>
+              Trading currency
+              <input
+                required
+                name="currency"
+                type="text"
+                minLength={3}
+                maxLength={3}
+                value={currency}
+                onChange={(event) =>
+                  setCurrency(event.target.value.toUpperCase())
+                }
+                placeholder="USD"
+              />
+            </label>
+          )}
           <label>
-            Purchase date (optional)
+            Purchase date
             <input
+              required
               name="purchaseDate"
               type="date"
               value={purchaseDate}
@@ -177,6 +224,7 @@ function AddAssetModal({
           <label>
             Purchase price per share
             <input
+              required
               name="purchasePrice"
               type="number"
               step="0.0001"
@@ -187,8 +235,9 @@ function AddAssetModal({
           </label>
 
           <p className="helper-text">
-            Purchase date and price are not yet persisted by the current backend
-            contract. They are validated for UX consistency only.
+            For stocks, enter a Twelve Data ticker only. Company name, exchange,
+            and trading currency are detected automatically. Purchase details
+            are saved as transaction history.
           </p>
 
           {currentHolding && (

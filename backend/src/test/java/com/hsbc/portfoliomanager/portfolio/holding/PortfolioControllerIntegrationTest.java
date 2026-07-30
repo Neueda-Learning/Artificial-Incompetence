@@ -74,6 +74,34 @@ class PortfolioControllerIntegrationTest {
     }
 
     @Test
+    void repeatedPortfolioItemCreationAddsQuantityInsteadOfViolatingUniqueConstraint() throws Exception {
+        String request = """
+                {
+                  "assetType": "STOCK",
+                  "symbol": "AAPL",
+                  "quantity": 3
+                }
+                """;
+
+        mockMvc.perform(post("/api/portfolio/items")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(request))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/api/portfolio/items")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(request))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.quantity").value(6));
+
+        assertThat(repository.findAll())
+                .singleElement()
+                .satisfies(item ->
+                        assertThat(item.getQuantity()).isEqualByComparingTo("6")
+                );
+    }
+
+    @Test
     void rejectsBlankSymbolWithoutSaving() throws Exception {
         mockMvc.perform(post("/api/portfolio/items")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -114,6 +142,7 @@ class PortfolioControllerIntegrationTest {
         @Primary
         AssetMetadataClient assetMetadataClient() {
             return symbol -> new AssetMetadata(
+                    symbol,
                     "Apple Inc.",
                     "NASDAQ",
                     "USD"

@@ -11,10 +11,12 @@ import DeleteAssetModal, {
   RemoveAssetPayload,
 } from "./components/Header/DeleteAssetModal";
 import {
-  createPortfolioItem,
+  createTransaction,
   deletePortfolioItem,
+  getPortfolioActivities,
   getPortfolioItems,
   getPortfolioPerformance,
+  updatePortfolioItemQuantity,
 } from "./services/portfolioService";
 import {
   ActivityRecord,
@@ -24,12 +26,7 @@ import {
 } from "./types/portfolio";
 import {
   aggregateHoldings,
-  createActivityRecord,
-  loadActivities,
-  persistActivities,
 } from "./utils/portfolio";
-
-const MAX_ACTIVITY_ITEMS = 200;
 
 function App() {
   const [items, setItems] = useState<PortfolioItem[]>([]);
@@ -42,9 +39,7 @@ function App() {
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isRemoveOpen, setIsRemoveOpen] = useState(false);
-  const [activities, setActivities] = useState<ActivityRecord[]>(() =>
-    loadActivities(),
-  );
+  const [activities, setActivities] = useState<ActivityRecord[]>([]);
 
   const refreshItems = useCallback(async () => {
     setIsLoading(true);
@@ -78,55 +73,53 @@ function App() {
     }
   }, []);
 
+  const refreshActivities = useCallback(async () => {
+    try {
+      setActivities(await getPortfolioActivities());
+    } catch {
+      setActivities([]);
+    }
+  }, []);
+
   const refreshAll = useCallback(async () => {
-    await Promise.all([refreshItems(), refreshPerformance()]);
-  }, [refreshItems, refreshPerformance]);
+    await Promise.all([
+      refreshItems(),
+      refreshPerformance(),
+      refreshActivities(),
+    ]);
+  }, [refreshActivities, refreshItems, refreshPerformance]);
 
   useEffect(() => {
     void refreshAll();
   }, [refreshAll]);
-
-  useEffect(() => {
-    persistActivities(activities);
-  }, [activities]);
 
   const holdings = useMemo<AggregatedHolding[]>(
     () => aggregateHoldings(items),
     [items],
   );
 
-  const appendActivity = useCallback((record: ActivityRecord) => {
-    setActivities((current) =>
-      [record, ...current].slice(0, MAX_ACTIVITY_ITEMS),
-    );
-  }, []);
-
   const handleAddAsset = useCallback(
     async (payload: AddAssetPayload) => {
       const currentHolding = holdings.find(
         (holding) => holding.symbol === payload.symbol,
       );
-      await createPortfolioItem({
+      const transaction = await createTransaction({
+        transactionType: "BUY",
         assetType: payload.assetType,
         symbol: payload.symbol,
         quantity: payload.shares,
+        pricePerUnit: payload.purchasePrice,
+        currency: payload.currency,
+        purchasedAt: `${payload.purchaseDate}T00:00:00.000Z`,
       });
       await refreshAll();
 
-      appendActivity(
-        createActivityRecord({
-          action: "ADDED",
-          symbol: payload.symbol,
-          shares: payload.shares,
-        }),
-      );
-
       const nextHolding = aggregateHoldings(await getPortfolioItems()).find(
-        (holding) => holding.symbol === payload.symbol,
+        (holding) => holding.symbol === transaction.symbol,
       );
 
       const resultLines = [
-        `${payload.symbol} added successfully.`,
+        `${transaction.symbol} purchase saved successfully.`,
         nextHolding
           ? `Updated shares: ${nextHolding.quantity.toLocaleString()}`
           : `Added shares: ${payload.shares.toLocaleString()}`,
@@ -138,7 +131,7 @@ function App() {
 
       return resultLines.join(" ");
     },
-    [appendActivity, holdings, refreshAll],
+    [holdings, refreshAll],
   );
 
   const handleRemoveAsset = useCallback(
@@ -156,36 +149,24 @@ function App() {
         (targetHolding.quantity - payload.shares).toFixed(8),
       );
 
-      for (const sourceId of targetHolding.sourceItemIds) {
-        await deletePortfolioItem(sourceId);
-      }
-
       if (remainingShares > 0) {
-        await createPortfolioItem({
-          assetType: targetHolding.assetType,
-          symbol: targetHolding.symbol,
-          quantity: remainingShares,
-        });
+        await updatePortfolioItemQuantity(
+          targetHolding.sourceItemIds[0],
+          remainingShares,
+        );
+      } else {
+        await deletePortfolioItem(targetHolding.sourceItemIds[0]);
       }
 
       await refreshAll();
-
-      appendActivity(
-        createActivityRecord({
-          action: "REMOVED",
-          symbol: payload.symbol,
-          shares: payload.shares,
-          remainingShares,
-        }),
-      );
 
       if (remainingShares > 0) {
         return `Removed ${payload.shares.toLocaleString()} shares of ${payload.symbol}. Remaining shares: ${remainingShares.toLocaleString()}. ${payload.symbol} remains active.`;
       }
 
-      return `Removed ${payload.shares.toLocaleString()} shares of ${payload.symbol}. Remaining shares: 0. ${payload.symbol} was removed from current holdings. History remains available.`;
+      return `Removed ${payload.shares.toLocaleString()} shares of ${payload.symbol}. Remaining shares: 0. ${payload.symbol} and its transaction history were deleted.`;
     },
-    [appendActivity, holdings, refreshAll],
+    [holdings, refreshAll],
   );
 
   const staleWarning = useMemo(() => {

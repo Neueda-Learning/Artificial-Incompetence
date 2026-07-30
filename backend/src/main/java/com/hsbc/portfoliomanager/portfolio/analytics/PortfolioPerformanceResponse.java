@@ -10,6 +10,8 @@ record PortfolioPerformanceResponse(
         BigDecimal currentValue,
         BigDecimal unrealizedProfitLoss,
         BigDecimal returnPercentage,
+        BigDecimal dayChange,
+        BigDecimal dayChangePercentage,
         String status, // COMPLETE, PARTIAL
         Instant priceUpdatedAt,
         List<AssetPerformance> assets,
