@@ -1,5 +1,7 @@
 package com.hsbc.portfoliomanager.portfolio.transaction;
 
+import com.hsbc.portfoliomanager.portfolio.holding.AssetMetadata;
+import com.hsbc.portfoliomanager.portfolio.holding.AssetMetadataClient;
 import com.hsbc.portfoliomanager.portfolio.holding.PortfolioItem;
 import com.hsbc.portfoliomanager.portfolio.holding.PortfolioItemRepository;
 
@@ -8,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -19,6 +22,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -41,8 +45,14 @@ class TransactionControllerIntegrationTest {
     @Autowired
     private PortfolioItemRepository portfolioItemRepository;
 
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
     @MockitoBean
     private ExchangeRateClient exchangeRateClient;
+
+    @MockitoBean
+    private AssetMetadataClient assetMetadataClient;
 
     /**
      * 中文：每个测试前清空交易和持仓，确保用例互不影响；并 mock 汇率校验通过，聚焦交易业务本身。
@@ -51,9 +61,15 @@ class TransactionControllerIntegrationTest {
      */
     @BeforeEach
     void setUp() {
+        jdbcTemplate.update("DELETE FROM portfolio_activities");
         transactionRepository.deleteAll();
         portfolioItemRepository.deleteAll();
         when(exchangeRateClient.isKnownCurrency(anyString())).thenReturn(true);
+        when(assetMetadataClient.findBySymbol(anyString()))
+                .thenAnswer(invocation -> {
+                    String symbol = invocation.getArgument(0);
+                    return new AssetMetadata(symbol, symbol + " Inc.", "NASDAQ", "USD");
+                });
         this.mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext).build();
     }
 
@@ -140,6 +156,47 @@ class TransactionControllerIntegrationTest {
                 .andExpect(jsonPath("$[0].currency").value("USD"))
                 .andExpect(jsonPath("$[0].purchasedAt").value("2026-07-27T11:30:00Z"))
                 .andExpect(jsonPath("$[1].purchasedAt").value("2026-07-27T10:30:00Z"));
+
+        mockMvc.perform(get("/api/portfolio/activities"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].action").value("ADDED"))
+                .andExpect(jsonPath("$[0].symbol").value("AAPL"))
+                .andExpect(jsonPath("$[0].quantity").value(2))
+                .andExpect(jsonPath("$[0].pricePerUnit").value(185.20))
+                .andExpect(jsonPath("$[0].occurredAt").value("2026-07-27T11:30:00Z"));
+    }
+
+    /**
+     * 中文：验证股票请求无需提供交易所或币种，后端会使用 Twelve Data 返回的规范元数据。
+     * English: Verifies a stock request needs no exchange or currency and uses canonical metadata from Twelve Data.
+     */
+    @Test
+    void shouldResolveStockExchangeAndCurrencyFromSymbolOnly() throws Exception {
+        when(assetMetadataClient.findBySymbol("00700.HK"))
+                .thenReturn(new AssetMetadata("0700", "Tencent Holdings Ltd", "HKEX", "HKD"));
+
+        mockMvc.perform(post("/api/transactions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "transactionType":"BUY",
+                                  "assetType":"STOCK",
+                                  "symbol":"00700.HK",
+                                  "quantity":2,
+                                  "pricePerUnit":550.00,
+                                  "purchasedAt":"2026-07-29T07:00:00Z"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.symbol").value("0700"))
+                .andExpect(jsonPath("$.currency").value("HKD"));
+
+        PortfolioItem holding = portfolioItemRepository.findAll().get(0);
+        org.junit.jupiter.api.Assertions.assertEquals("0700", holding.getSymbol());
+        org.junit.jupiter.api.Assertions.assertEquals("Tencent Holdings Ltd", holding.getCompanyName());
+        org.junit.jupiter.api.Assertions.assertEquals("HKEX", holding.getExchange());
+        org.junit.jupiter.api.Assertions.assertEquals("HKD", holding.getCurrency());
     }
 
     /**
@@ -199,7 +256,7 @@ class TransactionControllerIntegrationTest {
                         .content("""
                                 {
                                   "transactionType":"BUY",
-                                  "assetType":"STOCK",
+                                  "assetType":"CASH",
                                   "symbol":"AAPL",
                                   "quantity":2,
                                   "pricePerUnit":180.50,
@@ -269,7 +326,7 @@ class TransactionControllerIntegrationTest {
                         .content("""
                                 {
                                   "transactionType":"BUY",
-                                  "assetType":"STOCK",
+                                  "assetType":"CASH",
                                   "symbol":"AAPL",
                                   "quantity":2,
                                   "pricePerUnit":180.50,
@@ -295,7 +352,7 @@ class TransactionControllerIntegrationTest {
                         .content("""
                                 {
                                   "transactionType":"BUY",
-                                  "assetType":"STOCK",
+                                  "assetType":"CASH",
                                   "symbol":"AAPL",
                                   "quantity":2,
                                   "pricePerUnit":180.50,
@@ -364,11 +421,11 @@ class TransactionControllerIntegrationTest {
     }
 
     /**
-     * 中文：验证删除当前持仓后，历史购买记录仍保留（无级联删除）。
-     * English: Verifies buy history remains after deleting current holdings (no cascade delete).
+     * 中文：验证清仓删除持仓时，同步删除该资产的全部购买历史。
+     * English: Verifies full holding removal also deletes all buy history for that asset.
      */
     @Test
-    void shouldKeepBuyHistoryAfterPortfolioItemDeleted() throws Exception {
+    void shouldDeleteBuyHistoryAfterPortfolioItemDeleted() throws Exception {
         mockMvc.perform(post("/api/transactions")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -395,7 +452,62 @@ class TransactionControllerIntegrationTest {
 
         mockMvc.perform(get("/api/transactions").queryParam("type", "BUY"))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+
+        mockMvc.perform(get("/api/portfolio/activities"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].action").value("REMOVED"))
+                .andExpect(jsonPath("$[0].symbol").value("AAPL"))
+                .andExpect(jsonPath("$[0].quantity").value(3))
+                .andExpect(jsonPath("$[0].remainingQuantity").value(0))
+                .andExpect(jsonPath("$[1].action").value("ADDED"));
+    }
+
+    /**
+     * 中文：验证部分减仓只更新剩余持仓数量，并保留原始买入历史用于成本计算。
+     * English: Verifies partial removal only updates the remaining quantity and retains buy history for cost calculation.
+     */
+    @Test
+    void shouldKeepBuyHistoryAfterPartialRemoval() throws Exception {
+        mockMvc.perform(post("/api/transactions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "transactionType":"BUY",
+                                  "assetType":"STOCK",
+                                  "symbol":"AAPL",
+                                  "quantity":10,
+                                  "pricePerUnit":180.50,
+                                  "currency":"USD",
+                                  "purchasedAt":"2026-07-27T10:30:00Z"
+                                }
+                                """))
+                .andExpect(status().isCreated());
+
+        long itemId = portfolioItemRepository.findAll().get(0).getId();
+
+        mockMvc.perform(put("/api/portfolio/items/{id}/quantity", itemId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "quantity": 6
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.quantity").value(6));
+
+        mockMvc.perform(get("/api/transactions").queryParam("type", "BUY"))
+                .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].symbol").value("AAPL"));
+
+        mockMvc.perform(get("/api/portfolio/activities"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].action").value("REMOVED"))
+                .andExpect(jsonPath("$[0].quantity").value(4))
+                .andExpect(jsonPath("$[0].remainingQuantity").value(6))
+                .andExpect(jsonPath("$[1].action").value("ADDED"));
     }
 }

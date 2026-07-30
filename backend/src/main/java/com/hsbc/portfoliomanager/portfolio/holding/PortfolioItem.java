@@ -144,4 +144,12 @@ public class PortfolioItem {
     public void addQuantity(BigDecimal additionalQuantity) {
         this.quantity = this.quantity.add(additionalQuantity);
     }
+
+    /**
+     * 中文：部分减仓后以新的总数量替换当前持仓数量。
+     * English: Replaces the current holding quantity with the new total after a partial removal.
+     */
+    public void replaceQuantity(BigDecimal newQuantity) {
+        this.quantity = newQuantity;
+    }
 }

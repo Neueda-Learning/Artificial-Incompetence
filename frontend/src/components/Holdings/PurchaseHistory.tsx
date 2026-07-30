@@ -12,7 +12,7 @@ function PurchaseHistory({ activities }: PurchaseHistoryProps) {
       <h3>History</h3>
       {activities.length === 0 ? (
         <p className="subtle-text">
-          No Add or Remove history is available from backend yet.
+          No purchase or removal history is available yet.
         </p>
       ) : (
         <div className="table-wrapper">
@@ -42,7 +42,11 @@ function PurchaseHistory({ activities }: PurchaseHistoryProps) {
                   <td className="numeric-cell financial-value">
                     {formatNumber(record.shares, 4)}
                   </td>
-                  <td className="numeric-cell financial-value">—</td>
+                  <td className="numeric-cell financial-value">
+                    {record.pricePerUnit == null
+                      ? "—"
+                      : `${record.currency ?? ""} ${record.pricePerUnit.toFixed(2)}`.trim()}
+                  </td>
                   <td className="numeric-cell financial-value">
                     {record.remainingShares ?? "—"}
                   </td>

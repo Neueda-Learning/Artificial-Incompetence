@@ -182,7 +182,13 @@ class AnalyticsServiceTest {
             when(transactionRepository.findByTransactionTypeOrderByTransactedAtDesc(TransactionType.BUY))
                     .thenReturn(List.of(buy));
             when(marketDataService.getCurrentPrice("AAPL"))
-                    .thenReturn(Optional.of(new PriceData("AAPL", new BigDecimal("195.00"), "USD", NOW)));
+                    .thenReturn(Optional.of(new PriceData(
+                            "AAPL",
+                            new BigDecimal("195.00"),
+                            new BigDecimal("190.00"),
+                            "USD",
+                            NOW
+                    )));
 
             PortfolioPerformanceResponse response = analyticsService.calculatePerformance();
 
@@ -198,6 +204,10 @@ class AnalyticsServiceTest {
             // Return %: 145 / 1805 × 100 = 8.0332...
             assertThat(response.returnPercentage().doubleValue())
                     .isCloseTo(8.03, within(0.01));
+            // Day change: (195 - 190) × 10 = 50; previous value = 1900
+            assertThat(response.dayChange()).isEqualByComparingTo("50.00");
+            assertThat(response.dayChangePercentage())
+                    .isEqualByComparingTo("2.6316");
 
             // Per-asset
             assertThat(response.assets()).hasSize(1);
@@ -291,6 +301,8 @@ class AnalyticsServiceTest {
             assertThat(response.currentValue()).isEqualByComparingTo("0");
             assertThat(response.unrealizedProfitLoss()).isEqualByComparingTo("0");
             assertThat(response.returnPercentage()).isEqualByComparingTo("0");
+            assertThat(response.dayChange()).isEqualByComparingTo("0");
+            assertThat(response.dayChangePercentage()).isEqualByComparingTo("0");
             assertThat(response.assets()).isEmpty();
             assertThat(response.missingPrices()).isEmpty();
         }
@@ -313,6 +325,8 @@ class AnalyticsServiceTest {
             assertThat(response.currentValue()).isEqualByComparingTo("1950.00");
             assertThat(response.unrealizedProfitLoss()).isEqualByComparingTo("1950.00");
             assertThat(response.returnPercentage()).isEqualByComparingTo("0");
+            assertThat(response.dayChange()).isNull();
+            assertThat(response.dayChangePercentage()).isNull();
 
             PortfolioPerformanceResponse.AssetPerformance asset = response.assets().get(0);
             assertThat(asset.averageCost()).isNull();

@@ -58,7 +58,7 @@ class AnalyticsService {
         Instant latestUpdate = null;
 
         for (PortfolioItem item : items) {
-            var priceDataOpt = marketDataService.getCurrentPrice(item.getSymbol());
+            var priceDataOpt = getCurrentPrice(item);
 
             if (priceDataOpt.isEmpty()) {
                 missingPrices.add(item.getSymbol());
@@ -130,6 +130,8 @@ class AnalyticsService {
                     BigDecimal.ZERO,
                     BigDecimal.ZERO,
                     BigDecimal.ZERO,
+                    BigDecimal.ZERO,
+                    BigDecimal.ZERO,
                     "COMPLETE",
                     null,
                     List.of(),
@@ -153,6 +155,8 @@ class AnalyticsService {
 
         BigDecimal portfolioTotalCost = BigDecimal.ZERO;
         BigDecimal portfolioTotalValue = BigDecimal.ZERO;
+        BigDecimal portfolioPreviousCloseValue = BigDecimal.ZERO;
+        boolean completeDayChange = true;
 
         for (PortfolioItem holding : holdings) {
             String symbol = holding.getSymbol();
@@ -165,10 +169,11 @@ class AnalyticsService {
             }
 
             // Get current price
-            var priceDataOpt = marketDataService.getCurrentPrice(symbol);
+            var priceDataOpt = getCurrentPrice(holding);
 
             if (priceDataOpt.isEmpty()) {
                 missingPrices.add(symbol);
+                completeDayChange = false;
 
                 // Include what we know even without current price
                 if (averageCost != null) {
@@ -191,6 +196,7 @@ class AnalyticsService {
 
             var priceData = priceDataOpt.get();
             BigDecimal currentPrice = priceData.price();
+            BigDecimal previousClose = priceData.previousClose();
             String currency = priceData.currency();
 
             // Convert to USD if needed
@@ -198,7 +204,27 @@ class AnalyticsService {
                 var convertedOpt = marketDataService.convertToUsd(currentPrice, currency);
                 if (convertedOpt.isPresent()) {
                     currentPrice = convertedOpt.get();
+                } else {
+                    completeDayChange = false;
                 }
+
+                if (previousClose != null) {
+                    var convertedPreviousClose =
+                            marketDataService.convertToUsd(previousClose, currency);
+                    if (convertedPreviousClose.isPresent()) {
+                        previousClose = convertedPreviousClose.get();
+                    } else {
+                        completeDayChange = false;
+                    }
+                }
+            }
+
+            if (previousClose == null) {
+                completeDayChange = false;
+            } else {
+                portfolioPreviousCloseValue = portfolioPreviousCloseValue.add(
+                        previousClose.multiply(holding.getQuantity())
+                );
             }
 
             // Also convert the average cost if the transactions are in a different currency
@@ -277,6 +303,17 @@ class AnalyticsService {
                     .divide(portfolioTotalCost, 4, RoundingMode.HALF_UP);
         }
 
+        BigDecimal dayChange = null;
+        BigDecimal dayChangePercentage = null;
+        if (completeDayChange) {
+            dayChange = portfolioTotalValue.subtract(portfolioPreviousCloseValue);
+            dayChangePercentage = portfolioPreviousCloseValue.signum() == 0
+                    ? BigDecimal.ZERO
+                    : dayChange
+                            .multiply(BigDecimal.valueOf(100))
+                            .divide(portfolioPreviousCloseValue, 4, RoundingMode.HALF_UP);
+        }
+
         String status = missingPrices.isEmpty() ? "COMPLETE" : "PARTIAL";
 
         return new PortfolioPerformanceResponse(
@@ -285,6 +322,8 @@ class AnalyticsService {
                 portfolioTotalValue,
                 totalUnrealizedPnl,
                 totalReturnPct,
+                dayChange,
+                dayChangePercentage,
                 status,
                 latestUpdate,
                 assetPerformances,
@@ -315,5 +354,16 @@ class AnalyticsService {
         }
 
         return totalCost.divide(totalQuantity, 6, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * 中文：有交易所元数据时按“代码 + 交易所”查询当前价格，否则保持原有代码查询方式。
+     * English: Queries current price by symbol and exchange when metadata exists, otherwise uses symbol-only lookup.
+     */
+    private java.util.Optional<MarketDataService.PriceData> getCurrentPrice(PortfolioItem item) {
+        if (item.getExchange() == null || item.getExchange().isBlank()) {
+            return marketDataService.getCurrentPrice(item.getSymbol());
+        }
+        return marketDataService.getCurrentPrice(item.getSymbol(), item.getExchange());
     }
 }

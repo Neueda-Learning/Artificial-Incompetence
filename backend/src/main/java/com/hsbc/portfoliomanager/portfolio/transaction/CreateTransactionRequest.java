@@ -20,7 +20,7 @@ record CreateTransactionRequest(
         @NotBlank @Size(max = 20) String symbol,
         @NotNull @DecimalMin(value = "0.0", inclusive = false) BigDecimal quantity,
         @NotNull @DecimalMin(value = "0.0", inclusive = false) BigDecimal pricePerUnit,
-        @NotBlank @Size(min = 3, max = 3) String currency,
+        @Size(min = 3, max = 3) String currency,
         @NotNull Instant purchasedAt
 ) {
 }

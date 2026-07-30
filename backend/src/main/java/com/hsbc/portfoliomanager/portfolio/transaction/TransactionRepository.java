@@ -1,5 +1,6 @@
 package com.hsbc.portfoliomanager.portfolio.transaction;
 
+import com.hsbc.portfoliomanager.portfolio.holding.AssetType;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -16,4 +17,10 @@ public interface TransactionRepository extends JpaRepository<TransactionRecord, 
      * English: Returns the complete ledger in chronological order for historical portfolio reconstruction.
      */
     List<TransactionRecord> findAllByOrderByTransactedAtAsc();
+
+    /**
+     * 中文：清仓删除资产时，同步删除该资产的全部交易历史，避免历史买入继续参与成本计算。
+     * English: Deletes all transaction history for a removed asset so stale buys cannot affect later cost calculations.
+     */
+    long deleteByAssetTypeAndSymbol(AssetType assetType, String symbol);
 }

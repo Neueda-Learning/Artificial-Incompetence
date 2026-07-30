@@ -190,7 +190,8 @@ function DeleteAssetModal({
                 {remainingShares === 0 && (
                   <p>
                     {selectedHolding.symbol} will be removed from current
-                    holdings. Its activity history will remain available.
+                    holdings. Its transaction history will also be permanently
+                    deleted.
                   </p>
                 )}
               </div>

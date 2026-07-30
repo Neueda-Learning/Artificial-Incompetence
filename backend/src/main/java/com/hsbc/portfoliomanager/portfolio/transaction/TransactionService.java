@@ -1,10 +1,15 @@
 package com.hsbc.portfoliomanager.portfolio.transaction;
 
+import com.hsbc.portfoliomanager.portfolio.activity.PortfolioActivityService;
+import com.hsbc.portfoliomanager.portfolio.holding.AssetMetadata;
+import com.hsbc.portfoliomanager.portfolio.holding.AssetMetadataClient;
+import com.hsbc.portfoliomanager.portfolio.holding.AssetType;
 import com.hsbc.portfoliomanager.portfolio.holding.PortfolioItem;
 import com.hsbc.portfoliomanager.portfolio.holding.PortfolioItemRepository;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.util.List;
 import java.util.Locale;
@@ -15,19 +20,25 @@ class TransactionService {
     private final TransactionRepository transactionRepository;
     private final PortfolioItemRepository portfolioItemRepository;
     private final ExchangeRateClient exchangeRateClient;
+    private final AssetMetadataClient assetMetadataClient;
+    private final PortfolioActivityService activityService;
 
     /**
-     * 中文：注入交易仓库、持仓仓库和币种校验客户端。
-     * English: Injects the transaction repository, holding repository, and currency validation client.
+     * 中文：注入交易仓库、持仓仓库、币种校验客户端和资产元数据客户端。
+     * English: Injects transaction and holding repositories plus currency-validation and asset-metadata clients.
      */
     TransactionService(
             TransactionRepository transactionRepository,
             PortfolioItemRepository portfolioItemRepository,
-            ExchangeRateClient exchangeRateClient
+            ExchangeRateClient exchangeRateClient,
+            AssetMetadataClient assetMetadataClient,
+            PortfolioActivityService activityService
     ) {
         this.transactionRepository = transactionRepository;
         this.portfolioItemRepository = portfolioItemRepository;
         this.exchangeRateClient = exchangeRateClient;
+        this.assetMetadataClient = assetMetadataClient;
+        this.activityService = activityService;
     }
 
     /**
@@ -40,12 +51,27 @@ class TransactionService {
             throw new UnsupportedTransactionTypeException(request.transactionType());
         }
 
-        // 中文：统一标准化资产代码与币种，避免大小写和空格导致重复资产。
-        // English: Normalize symbol and currency to avoid duplicate assets caused by casing/whitespace differences.
-        String normalizedSymbol = request.symbol().trim().toUpperCase(Locale.ROOT);
-        String normalizedCurrency = request.currency().trim().toUpperCase(Locale.ROOT);
+        // 中文：统一标准化资产代码；股票的代码、交易所和币种由 Twelve Data 自动解析。
+        // English: Normalize the submitted ticker; Twelve Data resolves canonical ticker, exchange, and currency for stocks.
+        String requestedSymbol = request.symbol().trim().toUpperCase(Locale.ROOT);
+        String requestedCurrency = StringUtils.hasText(request.currency())
+                ? request.currency().trim().toUpperCase(Locale.ROOT)
+                : "USD";
 
-        if (!exchangeRateClient.isKnownCurrency(normalizedCurrency)) {
+        AssetMetadata metadata = request.assetType() == AssetType.STOCK
+                ? assetMetadataClient.findBySymbol(requestedSymbol)
+                : new AssetMetadata(requestedSymbol, null, null, requestedCurrency);
+
+        String normalizedSymbol = metadata.symbol();
+        String normalizedCurrency = request.assetType() == AssetType.STOCK
+                ? metadata.currency()
+                : requestedCurrency;
+
+        // 中文：股票币种由 Twelve Data 的已解析上市记录提供；手工输入币种只需对非股票资产额外校验。
+        // English: Stock currency comes from the resolved Twelve Data listing; only manually entered non-stock currency
+        // needs separate validation.
+        if (request.assetType() != AssetType.STOCK
+                && !exchangeRateClient.isKnownCurrency(normalizedCurrency)) {
             throw new UnknownCurrencyException(normalizedCurrency);
         }
 
@@ -71,10 +97,21 @@ class TransactionService {
                         () -> portfolioItemRepository.save(new PortfolioItem(
                                 request.assetType(),
                                 normalizedSymbol,
+                                metadata.companyName(),
+                                metadata.exchange(),
                                 request.quantity(),
                                 normalizedCurrency
                         ))
                 );
+
+        activityService.recordAdded(
+                request.assetType(),
+                normalizedSymbol,
+                request.quantity(),
+                request.pricePerUnit(),
+                normalizedCurrency,
+                request.purchasedAt()
+        );
 
         return TransactionResponse.from(savedTransaction);
     }

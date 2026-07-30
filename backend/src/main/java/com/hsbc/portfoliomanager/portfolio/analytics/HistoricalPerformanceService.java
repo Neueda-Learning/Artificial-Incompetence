@@ -51,8 +51,8 @@ class HistoricalPerformanceService {
     }
 
     /**
-     * 中文：按时间范围重建每日持仓，并计算历史市值、成本和收益率。
-     * English: Reconstructs daily holdings and calculates historical value, cost, and return for a time range.
+     * 中文：按时间范围重建每日持仓，并计算总体与每只资产的历史市值、成本和收益率。
+     * English: Reconstructs daily holdings and calculates overall and per-asset value, cost, and return over time.
      */
     HistoricalPerformanceResponse calculate(String requestedRange) {
         String range = normalizeRange(requestedRange);
@@ -67,6 +67,7 @@ class HistoricalPerformanceService {
                     startDate,
                     endDate,
                     "UNAVAILABLE",
+                    List.of(),
                     List.of(),
                     List.of("TRANSACTION_HISTORY")
             );
@@ -87,6 +88,8 @@ class HistoricalPerformanceService {
         }
 
         Map<AssetKey, NavigableMap<LocalDate, PricePoint>> priceSeries = new HashMap<>();
+        Map<AssetKey, List<HistoricalPerformanceResponse.PerformancePoint>> assetPoints =
+                new HashMap<>();
         Set<LocalDate> valuationDates = new LinkedHashSet<>();
         Set<String> missingData = new LinkedHashSet<>();
 
@@ -161,37 +164,44 @@ class HistoricalPerformanceService {
                 }
                 hasPosition = true;
 
+                BigDecimal assetCostBasis = null;
                 if (!position.costKnown) {
                     completeCostBasis = false;
                 } else {
-                    costBasis = costBasis.add(position.costBasisUsd);
+                    assetCostBasis = position.costBasisUsd;
+                    costBasis = costBasis.add(assetCostBasis);
                 }
 
+                BigDecimal assetMarketValue = null;
                 NavigableMap<LocalDate, PricePoint> prices = priceSeries.get(asset);
                 Map.Entry<LocalDate, PricePoint> priceEntry =
                         prices == null ? null : prices.floorEntry(valuationDate);
                 if (priceEntry == null) {
                     completeMarketValue = false;
                     missingData.add(asset.symbol() + ":" + valuationDate);
-                    continue;
-                }
-
-                PricePoint price = priceEntry.getValue();
-                var rate = historicalMarketDataService.getRateToUsd(
-                        price.currency(),
-                        valuationDate
-                );
-                if (rate.isEmpty()) {
-                    completeMarketValue = false;
-                    missingData.add(price.currency() + "/USD:" + valuationDate);
-                    continue;
-                }
-
-                marketValue = marketValue.add(
-                        price.closePrice()
+                } else {
+                    PricePoint price = priceEntry.getValue();
+                    var rate = historicalMarketDataService.getRateToUsd(
+                            price.currency(),
+                            valuationDate
+                    );
+                    if (rate.isEmpty()) {
+                        completeMarketValue = false;
+                        missingData.add(price.currency() + "/USD:" + valuationDate);
+                    } else {
+                        assetMarketValue = price.closePrice()
                                 .multiply(position.quantity)
-                                .multiply(rate.get())
-                );
+                                .multiply(rate.get());
+                        marketValue = marketValue.add(assetMarketValue);
+                    }
+                }
+
+                assetPoints.computeIfAbsent(asset, ignored -> new ArrayList<>())
+                        .add(performancePoint(
+                                valuationDate,
+                                assetMarketValue,
+                                assetCostBasis
+                        ));
             }
 
             if (!hasPosition) {
@@ -200,23 +210,10 @@ class HistoricalPerformanceService {
 
             BigDecimal pointCostBasis = completeCostBasis ? costBasis : null;
             BigDecimal pointMarketValue = completeMarketValue ? marketValue : null;
-            BigDecimal profitLoss = null;
-            BigDecimal returnPercentage = null;
-
-            if (pointCostBasis != null && pointMarketValue != null) {
-                profitLoss = pointMarketValue.subtract(pointCostBasis);
-                returnPercentage = pointCostBasis.signum() == 0
-                        ? BigDecimal.ZERO
-                        : profitLoss.multiply(BigDecimal.valueOf(100))
-                                .divide(pointCostBasis, 4, RoundingMode.HALF_UP);
-            }
-
-            points.add(new HistoricalPerformanceResponse.PerformancePoint(
+            points.add(performancePoint(
                     valuationDate,
                     pointMarketValue,
-                    pointCostBasis,
-                    profitLoss,
-                    returnPercentage
+                    pointCostBasis
             ));
         }
 
@@ -229,6 +226,16 @@ class HistoricalPerformanceService {
             status = "PARTIAL";
         }
 
+        List<HistoricalPerformanceResponse.AssetSeries> assetSeries = assets.stream()
+                .map(asset -> new HistoricalPerformanceResponse.AssetSeries(
+                        asset.id(),
+                        asset.symbol(),
+                        asset.assetType(),
+                        REPORTING_CURRENCY,
+                        List.copyOf(assetPoints.getOrDefault(asset, List.of()))
+                ))
+                .toList();
+
         return new HistoricalPerformanceResponse(
                 REPORTING_CURRENCY,
                 range,
@@ -236,7 +243,37 @@ class HistoricalPerformanceService {
                 endDate,
                 status,
                 points,
+                assetSeries,
                 List.copyOf(missingData)
+        );
+    }
+
+    /**
+     * 中文：根据某个日期的市值与成本生成总体或单资产绩效点。
+     * English: Builds an overall or per-asset performance point from value and cost on a valuation date.
+     */
+    private static HistoricalPerformanceResponse.PerformancePoint performancePoint(
+            LocalDate valuationDate,
+            BigDecimal marketValue,
+            BigDecimal costBasis
+    ) {
+        BigDecimal profitLoss = null;
+        BigDecimal returnPercentage = null;
+
+        if (costBasis != null && marketValue != null) {
+            profitLoss = marketValue.subtract(costBasis);
+            returnPercentage = costBasis.signum() == 0
+                    ? BigDecimal.ZERO
+                    : profitLoss.multiply(BigDecimal.valueOf(100))
+                            .divide(costBasis, 4, RoundingMode.HALF_UP);
+        }
+
+        return new HistoricalPerformanceResponse.PerformancePoint(
+                valuationDate,
+                marketValue,
+                costBasis,
+                profitLoss,
+                returnPercentage
         );
     }
 
@@ -377,6 +414,14 @@ class HistoricalPerformanceService {
             String symbol,
             String currency
     ) {
+
+        /**
+         * 中文：生成可供前端稳定选择单只资产的标识。
+         * English: Builds a stable identifier used by the frontend to select one asset series.
+         */
+        String id() {
+            return assetType + ":" + symbol + ":" + currency;
+        }
     }
 
     private static final class PositionState {
