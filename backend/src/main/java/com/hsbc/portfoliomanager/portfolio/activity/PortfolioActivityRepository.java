@@ -6,4 +6,10 @@ import java.util.List;
 
 interface PortfolioActivityRepository extends JpaRepository<PortfolioActivity, Long> {
     List<PortfolioActivity> findAllByOrderByOccurredAtDescIdDesc();
+
+    List<PortfolioActivity> findAllByOrderByOccurredAtAscIdAsc();
+
+    List<PortfolioActivity> findAllByActionOrderByOccurredAtDescIdDesc(
+            PortfolioActivityAction action
+    );
 }

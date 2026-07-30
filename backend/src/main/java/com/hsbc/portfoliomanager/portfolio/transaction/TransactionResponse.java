@@ -1,5 +1,6 @@
 package com.hsbc.portfoliomanager.portfolio.transaction;
 
+import com.hsbc.portfoliomanager.portfolio.activity.PortfolioLedgerEntry;
 import com.hsbc.portfoliomanager.portfolio.holding.AssetType;
 
 import java.math.BigDecimal;
@@ -22,15 +23,15 @@ record TransactionResponse(
      * 中文：将实体对象映射为对外响应，隔离持久化字段命名与 API 字段命名差异。
      * English: Maps entity to API response, decoupling persistence details from external contract.
      */
-    static TransactionResponse from(TransactionRecord transaction) {
+    static TransactionResponse from(PortfolioLedgerEntry transaction) {
         return new TransactionResponse(
-                transaction.getId(),
-                transaction.getAssetType(),
-                transaction.getSymbol(),
-                transaction.getQuantity(),
-                transaction.getPricePerUnit(),
-                transaction.getCurrency(),
-                transaction.getTransactedAt()
+                transaction.id(),
+                transaction.assetType(),
+                transaction.symbol(),
+                transaction.quantity(),
+                transaction.pricePerUnit(),
+                transaction.currency(),
+                transaction.occurredAt()
         );
     }
 }

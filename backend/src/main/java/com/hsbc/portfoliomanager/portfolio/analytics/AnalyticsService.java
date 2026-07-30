@@ -9,11 +9,12 @@ import java.util.List;
 import java.util.Map;
 
 import com.hsbc.portfoliomanager.marketdata.MarketDataService;
+import com.hsbc.portfoliomanager.portfolio.activity.PortfolioActivityAction;
+import com.hsbc.portfoliomanager.portfolio.activity.PortfolioActivityService;
+import com.hsbc.portfoliomanager.portfolio.activity.PortfolioLedgerEntry;
+import com.hsbc.portfoliomanager.portfolio.holding.AssetType;
 import com.hsbc.portfoliomanager.portfolio.holding.PortfolioItem;
 import com.hsbc.portfoliomanager.portfolio.holding.PortfolioItemRepository;
-import com.hsbc.portfoliomanager.portfolio.transaction.TransactionRecord;
-import com.hsbc.portfoliomanager.portfolio.transaction.TransactionRepository;
-import com.hsbc.portfoliomanager.portfolio.transaction.TransactionType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -25,7 +26,7 @@ class AnalyticsService {
     private static final Logger log = LoggerFactory.getLogger(AnalyticsService.class);
 
     private final PortfolioItemRepository portfolioItemRepository;
-    private final TransactionRepository transactionRepository;
+    private final PortfolioActivityService activityService;
     private final MarketDataService marketDataService;
 
     /**
@@ -33,10 +34,10 @@ class AnalyticsService {
      * English: Injects the holding repository, transaction repository, and current market data service.
      */
     AnalyticsService(PortfolioItemRepository portfolioItemRepository,
-                     TransactionRepository transactionRepository,
+                     PortfolioActivityService activityService,
                      MarketDataService marketDataService) {
         this.portfolioItemRepository = portfolioItemRepository;
-        this.transactionRepository = transactionRepository;
+        this.activityService = activityService;
         this.marketDataService = marketDataService;
     }
 
@@ -139,15 +140,9 @@ class AnalyticsService {
             );
         }
 
-        // Load all buy transactions once
-        List<TransactionRecord> allBuys =
-                transactionRepository.findByTransactionTypeOrderByTransactedAtDesc(TransactionType.BUY);
-
-        // Group transactions by symbol for weighted average cost calculation
-        Map<String, List<TransactionRecord>> buysBySymbol = new HashMap<>();
-        for (TransactionRecord tx : allBuys) {
-            buysBySymbol.computeIfAbsent(tx.getSymbol(), k -> new ArrayList<>()).add(tx);
-        }
+        Map<AssetKey, CostState> costsByAsset = calculateCostStates(
+                activityService.findLedgerOldestFirst()
+        );
 
         List<PortfolioPerformanceResponse.AssetPerformance> assetPerformances = new ArrayList<>();
         List<String> missingPrices = new ArrayList<>();
@@ -161,8 +156,12 @@ class AnalyticsService {
         for (PortfolioItem holding : holdings) {
             String symbol = holding.getSymbol();
 
-            // Calculate weighted average cost
-            BigDecimal averageCost = calculateWeightedAverageCost(buysBySymbol.get(symbol));
+            CostState costState = costsByAsset.get(new AssetKey(
+                    holding.getAssetType(),
+                    holding.getSymbol(),
+                    holding.getCurrency()
+            ));
+            BigDecimal averageCost = averageCost(costState);
             BigDecimal costBasis = BigDecimal.ZERO;
             if (averageCost != null) {
                 costBasis = averageCost.multiply(holding.getQuantity());
@@ -332,28 +331,60 @@ class AnalyticsService {
     }
 
     /**
-     * 中文：根据多笔买入的总成本和总数量计算加权平均单位成本。
-     * English: Calculates weighted average unit cost from the total cost and quantity of multiple purchases.
+     * 中文：按时间顺序重放新增与移除流水，计算每项当前持仓的剩余数量和成本。
+     * English: Replays added and removed ledger entries chronologically to calculate remaining quantity and cost.
      */
-    private BigDecimal calculateWeightedAverageCost(List<TransactionRecord> buys) {
-        if (buys == null || buys.isEmpty()) {
+    private Map<AssetKey, CostState> calculateCostStates(List<PortfolioLedgerEntry> ledger) {
+        Map<AssetKey, CostState> result = new HashMap<>();
+        for (PortfolioLedgerEntry entry : ledger) {
+            AssetKey key = new AssetKey(entry.assetType(), entry.symbol(), entry.currency());
+            CostState state = result.computeIfAbsent(key, ignored -> new CostState());
+
+            if (entry.action() == PortfolioActivityAction.ADDED) {
+                state.quantity = state.quantity.add(entry.quantity());
+                if (entry.pricePerUnit() == null) {
+                    state.costKnown = false;
+                } else if (state.costKnown) {
+                    state.cost = state.cost.add(
+                            entry.pricePerUnit().multiply(entry.quantity())
+                    );
+                }
+                continue;
+            }
+
+            if (state.quantity.signum() <= 0) {
+                continue;
+            }
+            BigDecimal removed = entry.quantity().min(state.quantity);
+            if (state.costKnown) {
+                BigDecimal averageCost = state.cost.divide(
+                        state.quantity,
+                        12,
+                        RoundingMode.HALF_UP
+                );
+                state.cost = state.cost.subtract(averageCost.multiply(removed));
+            }
+            state.quantity = state.quantity.subtract(removed);
+            if (state.quantity.signum() == 0
+                    || (entry.remainingQuantity() != null
+                        && entry.remainingQuantity().signum() == 0)) {
+                state.quantity = BigDecimal.ZERO;
+                state.cost = BigDecimal.ZERO;
+                state.costKnown = true;
+            }
+        }
+        return result;
+    }
+
+    /**
+     * 中文：由重建后的剩余成本和数量计算当前平均成本。
+     * English: Calculates current average cost from the reconstructed remaining cost and quantity.
+     */
+    private BigDecimal averageCost(CostState state) {
+        if (state == null || !state.costKnown || state.quantity.signum() <= 0) {
             return null;
         }
-
-        BigDecimal totalCost = BigDecimal.ZERO;
-        BigDecimal totalQuantity = BigDecimal.ZERO;
-
-        for (TransactionRecord tx : buys) {
-            BigDecimal txCost = tx.getPricePerUnit().multiply(tx.getQuantity());
-            totalCost = totalCost.add(txCost);
-            totalQuantity = totalQuantity.add(tx.getQuantity());
-        }
-
-        if (totalQuantity.compareTo(BigDecimal.ZERO) == 0) {
-            return null;
-        }
-
-        return totalCost.divide(totalQuantity, 6, RoundingMode.HALF_UP);
+        return state.cost.divide(state.quantity, 6, RoundingMode.HALF_UP);
     }
 
     /**
@@ -365,5 +396,18 @@ class AnalyticsService {
             return marketDataService.getCurrentPrice(item.getSymbol());
         }
         return marketDataService.getCurrentPrice(item.getSymbol(), item.getExchange());
+    }
+
+    private record AssetKey(
+            AssetType assetType,
+            String symbol,
+            String currency
+    ) {
+    }
+
+    private static final class CostState {
+        private BigDecimal quantity = BigDecimal.ZERO;
+        private BigDecimal cost = BigDecimal.ZERO;
+        private boolean costKnown = true;
     }
 }
