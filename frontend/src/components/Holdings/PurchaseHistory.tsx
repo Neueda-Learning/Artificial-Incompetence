@@ -6,6 +6,10 @@ interface PurchaseHistoryProps {
   activities: ActivityRecord[];
 }
 
+/**
+ * 中文：把 portfolio_activities 接口返回的新增和删除记录展示为统一历史表。
+ * English: Renders add/remove records returned by portfolio_activities as one history table.
+ */
 function PurchaseHistory({ activities }: PurchaseHistoryProps) {
   return (
     <article className="panel">

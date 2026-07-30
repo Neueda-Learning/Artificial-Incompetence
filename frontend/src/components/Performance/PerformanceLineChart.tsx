@@ -24,6 +24,10 @@ interface LinePoint {
   y: number;
 }
 
+/**
+ * 中文：把历史市值映射到 SVG 坐标；自动适配单点、相同数值和不同数据范围。
+ * English: Maps historical values to SVG coordinates, handling one point, flat values, and varying ranges.
+ */
 function linePoints(points: HistoricalPerformancePoint[]): LinePoint[] {
   const values = points.map((point) => point.marketValue as number);
   const minimumValue = Math.min(...values);
@@ -47,6 +51,10 @@ function linePoints(points: HistoricalPerformancePoint[]): LinePoint[] {
   });
 }
 
+/**
+ * 中文：用 SVG 折线展示历史市值，并处理加载、错误、空数据和缺失数据状态。
+ * English: Renders historical market value as an SVG line chart with loading, error, empty, and missing-data states.
+ */
 function PerformanceLineChart({
   points,
   ariaLabel,

@@ -14,6 +14,10 @@ interface HoldingsMetricsTableProps {
   performance: PortfolioPerformance | null;
 }
 
+/**
+ * 中文：把持仓数量与表现接口中的市值、未实现盈亏按股票代码合并展示。
+ * English: Joins holding quantities with market value and unrealized P/L by symbol for display.
+ */
 function HoldingsMetricsTable({
   holdings,
   performance,

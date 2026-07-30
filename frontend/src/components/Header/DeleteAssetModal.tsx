@@ -15,6 +15,10 @@ interface DeleteAssetModalProps {
   holdings: AggregatedHolding[];
 }
 
+/**
+ * 中文：让用户选择当前持仓和删除数量，并通过二次确认降低误删风险。
+ * English: Lets users choose an active holding and removal quantity with a confirmation step.
+ */
 function DeleteAssetModal({
   isOpen,
   onClose,
@@ -43,6 +47,8 @@ function DeleteAssetModal({
       )
     : null;
 
+  // 中文：验证删除数量必须有效、为正数且不能超过当前持仓。
+  // English: Validates that the removal quantity is valid, positive, and no greater than the holding.
   const validationError = useMemo(() => {
     if (!symbol) {
       return "Please choose an active asset.";
@@ -63,6 +69,10 @@ function DeleteAssetModal({
     return null;
   }
 
+  /**
+   * 中文：清空删除表单及其提示状态。
+   * English: Clears the removal form and all feedback state.
+   */
   const resetForm = () => {
     setSymbol("");
     setShares("");
@@ -71,11 +81,19 @@ function DeleteAssetModal({
     setIsConfirming(false);
   };
 
+  /**
+   * 中文：关闭弹窗前重置表单，确保下次打开不会残留旧数据。
+   * English: Resets the form before closing so stale values do not appear next time.
+   */
   const handleClose = () => {
     resetForm();
     onClose();
   };
 
+  /**
+   * 中文：完成第一阶段校验并进入最终确认状态，不立即修改数据。
+   * English: Runs first-stage validation and opens confirmation without changing data.
+   */
   const handleInitialSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
@@ -87,6 +105,10 @@ function DeleteAssetModal({
     setIsConfirming(true);
   };
 
+  /**
+   * 中文：最终确认后调用父组件删除逻辑，并显示后端同步结果。
+   * English: Invokes the parent removal flow after final confirmation and displays the synchronization result.
+   */
   const handleFinalConfirm = async () => {
     if (validationError) {
       setError(validationError);

@@ -21,12 +21,20 @@ interface AddAssetModalProps {
 
 const ASSET_TYPES: AssetType[] = ["STOCK", "BOND", "CASH"];
 
+/**
+ * 中文：生成适合 date 输入框的本地当天日期，避免 UTC 时区导致日期偏移。
+ * English: Produces today's local date for a date input without UTC timezone drift.
+ */
 function todayAsInputValue(): string {
   const now = new Date();
   const localTime = new Date(now.getTime() - now.getTimezoneOffset() * 60_000);
   return localTime.toISOString().slice(0, 10);
 }
 
+/**
+ * 中文：判断用户选择的购买日期是否晚于本地今天。
+ * English: Checks whether the selected purchase date is later than local today.
+ */
 function isFutureDate(dateValue: string): boolean {
   if (!dateValue) {
     return false;
@@ -38,6 +46,10 @@ function isFutureDate(dateValue: string): boolean {
   return selectedDate.getTime() > now.getTime();
 }
 
+/**
+ * 中文：收集并校验购买信息，再通过父组件提交买入记录。
+ * English: Collects and validates purchase details, then delegates the purchase request to the parent.
+ */
 function AddAssetModal({
   isOpen,
   onClose,
@@ -60,6 +72,8 @@ function AddAssetModal({
     [holdings, normalizedSymbol],
   );
 
+  // 中文：集中计算表单错误，使提交按钮和提交处理使用同一套校验规则。
+  // English: Centralizes validation so the submit button and handler share identical rules.
   const validationError = useMemo(() => {
     if (!normalizedSymbol) {
       return "Asset symbol is required.";
@@ -98,6 +112,10 @@ function AddAssetModal({
     return null;
   }
 
+  /**
+   * 中文：阻止浏览器默认提交，构造标准化 payload，并显示后端返回的成功或失败信息。
+   * English: Prevents native submission, builds a normalized payload, and displays the backend result.
+   */
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);

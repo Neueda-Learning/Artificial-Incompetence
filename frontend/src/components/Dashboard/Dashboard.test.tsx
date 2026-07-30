@@ -198,7 +198,9 @@ describe("Dashboard", () => {
     expect(screen.getByText("Total Cost Basis")).toBeInTheDocument();
     expect(screen.getByText("USD 5,000.00")).toBeInTheDocument();
     expect(screen.getByText(/Unrealized P\/L:/)).toBeInTheDocument();
-    expect(screen.getByText("+USD 500.00")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Unrealized P\/L:\s*\+USD 500\.00/),
+    ).toBeInTheDocument();
   });
 
   it("renders negative values with negative styling", () => {
@@ -220,7 +222,9 @@ describe("Dashboard", () => {
 
     expect(screen.getByText("−8.33%")).toBeInTheDocument();
     expect(screen.getByText("−USD 100.00")).toBeInTheDocument();
-    expect(screen.getByText("−USD 500.00")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Unrealized P\/L:\s*−USD 500\.00/),
+    ).toBeInTheDocument();
   });
 
   it('renders "Top Holdings" link and table', () => {

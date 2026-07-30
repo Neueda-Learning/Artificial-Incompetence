@@ -45,7 +45,6 @@ class PortfolioActivityControllerIntegrationTest {
     @BeforeEach
     void setUp() {
         jdbcTemplate.update("DELETE FROM portfolio_activities");
-        jdbcTemplate.update("DELETE FROM transactions");
         jdbcTemplate.update("DELETE FROM portfolio_items");
         when(exchangeRateClient.isKnownCurrency(anyString())).thenReturn(true);
         when(assetMetadataClient.findBySymbol(anyString()))

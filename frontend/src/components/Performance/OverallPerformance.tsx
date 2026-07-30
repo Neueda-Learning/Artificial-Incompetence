@@ -23,6 +23,10 @@ interface OverallPerformanceProps {
 
 const OVERALL_SERIES_ID = "OVERALL";
 
+/**
+ * 中文：在总体组合和单支股票之间切换，展示对应指标与历史折线。
+ * English: Switches between the whole portfolio and individual stocks to show matching metrics and history.
+ */
 function OverallPerformance({
   holdings,
   performance,
@@ -34,6 +38,8 @@ function OverallPerformance({
   const [selectedSeriesId, setSelectedSeriesId] =
     useState(OVERALL_SERIES_ID);
 
+  // 中文：当已选股票不再存在于最新响应中时，自动退回总体视图。
+  // English: Falls back to the overall view when the selected asset is absent from the latest response.
   useEffect(() => {
     if (
       selectedSeriesId !== OVERALL_SERIES_ID &&

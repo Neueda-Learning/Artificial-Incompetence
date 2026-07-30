@@ -22,6 +22,10 @@ const DASHBOARD_RANGES: PerformanceRange[] = [
   "ALL",
 ];
 
+/**
+ * 中文：显示 Dashboard 的总体历史折线和资产配置，并在时间范围变化时重新请求历史接口。
+ * English: Shows the dashboard history line and allocation, refetching history when the selected range changes.
+ */
 function MarketIndicators({
   holdings,
   performance,
@@ -32,6 +36,8 @@ function MarketIndicators({
   const [isHistoryLoading, setIsHistoryLoading] = useState(true);
   const [historyError, setHistoryError] = useState<string | null>(null);
 
+  // 中文：用 isActive 防止组件卸载或范围切换后，旧请求覆盖新状态。
+  // English: isActive prevents stale requests from updating state after unmount or a range change.
   useEffect(() => {
     let isActive = true;
     setIsHistoryLoading(true);

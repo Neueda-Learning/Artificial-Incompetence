@@ -94,6 +94,10 @@ interface ApiErrorResponse {
   fieldErrors?: Record<string, string>;
 }
 
+/**
+ * 中文：把 Axios、后端字段校验和普通异常统一转换为可展示的 Error。
+ * English: Converts Axios, backend validation, and generic failures into a displayable Error.
+ */
 function requestError(error: unknown, fallback: string): Error {
   if (!axios.isAxiosError<ApiErrorResponse>(error)) {
     return error instanceof Error ? error : new Error(fallback);
@@ -105,10 +109,18 @@ function requestError(error: unknown, fallback: string): Error {
   return new Error(message);
 }
 
+/**
+ * 中文：把后端可能返回的数字字符串转换为 number，同时保留 null。
+ * English: Converts backend numeric strings to numbers while preserving null values.
+ */
 function nullableNumber(value: NullableNumeric): number | null {
   return value === null ? null : Number(value);
 }
 
+/**
+ * 中文：标准化持仓接口的数据类型，避免 quantity 以字符串形式进入组件。
+ * English: Normalizes a holding response so quantity never reaches components as a string.
+ */
 function normalizeItem(item: RawPortfolioItem): PortfolioItem {
   return {
     id: item.id,
@@ -118,6 +130,10 @@ function normalizeItem(item: RawPortfolioItem): PortfolioItem {
   };
 }
 
+/**
+ * 中文：把单个资产表现接口结果转换成前端统一使用的数字结构。
+ * English: Converts one asset-performance response into the numeric shape used by the UI.
+ */
 function normalizeAssetPerformance(
   asset: RawAssetPerformance,
 ): AssetPerformance {
@@ -134,6 +150,10 @@ function normalizeAssetPerformance(
   };
 }
 
+/**
+ * 中文：标准化一个历史表现数据点，供折线图和表现指标使用。
+ * English: Normalizes one historical-performance point for charts and performance metrics.
+ */
 function normalizeHistoricalPoint(
   point: RawHistoricalPerformancePoint,
 ): HistoricalPerformancePoint {
@@ -146,6 +166,10 @@ function normalizeHistoricalPoint(
   };
 }
 
+/**
+ * 中文：在模拟数据模式下，从浏览器 localStorage 读取持仓。
+ * English: Reads holdings from browser localStorage when mock-data mode is enabled.
+ */
 function getStoredMockItems(): PortfolioItem[] {
   if (typeof window === "undefined") {
     return [];
@@ -164,6 +188,10 @@ function getStoredMockItems(): PortfolioItem[] {
   }
 }
 
+/**
+ * 中文：在模拟数据模式下，把持仓保存到浏览器 localStorage。
+ * English: Persists holdings to browser localStorage in mock-data mode.
+ */
 function storeMockItems(items: PortfolioItem[]): void {
   if (typeof window === "undefined") {
     return;
@@ -172,6 +200,10 @@ function storeMockItems(items: PortfolioItem[]): void {
   window.localStorage.setItem(MOCK_ITEMS_STORAGE_KEY, JSON.stringify(items));
 }
 
+/**
+ * 中文：首次启用模拟模式时，用 public/mock-data 中的种子文件初始化本地持仓。
+ * English: Seeds local mock holdings from public/mock-data the first time mock mode is used.
+ */
 async function ensureMockSeeded(): Promise<void> {
   if (!USE_MOCK_DATA || typeof window === "undefined") {
     return;
@@ -196,6 +228,10 @@ async function ensureMockSeeded(): Promise<void> {
   window.localStorage.setItem(MOCK_SEEDED_STORAGE_KEY, "true");
 }
 
+/**
+ * 中文：调用 GET /api/portfolio/items 获取当前持仓；模拟模式下改读 localStorage。
+ * English: Fetches current holdings through GET /api/portfolio/items, or localStorage in mock mode.
+ */
 export async function getPortfolioItems(): Promise<PortfolioItem[]> {
   if (USE_MOCK_DATA) {
     await ensureMockSeeded();
@@ -206,6 +242,10 @@ export async function getPortfolioItems(): Promise<PortfolioItem[]> {
   return (response.data as RawPortfolioItem[]).map(normalizeItem);
 }
 
+/**
+ * 中文：调用 POST /api/portfolio/items 创建持仓记录。
+ * English: Creates a holding record through POST /api/portfolio/items.
+ */
 export async function createPortfolioItem(
   payload: CreatePortfolioItemRequest,
 ): Promise<PortfolioItem> {
@@ -231,6 +271,10 @@ export async function createPortfolioItem(
   return normalizeItem(response.data as RawPortfolioItem);
 }
 
+/**
+ * 中文：调用 PUT /api/portfolio/items/{id}/quantity 更新某条持仓的剩余数量。
+ * English: Updates a holding's remaining quantity through PUT /api/portfolio/items/{id}/quantity.
+ */
 export async function updatePortfolioItemQuantity(
   id: number,
   quantity: number,
@@ -255,6 +299,10 @@ export async function updatePortfolioItemQuantity(
   return normalizeItem(response.data as RawPortfolioItem);
 }
 
+/**
+ * 中文：调用 POST /api/transactions 保存买入记录，并由后端同步当前持仓与活动历史。
+ * English: Saves a purchase through POST /api/transactions so the backend can update holdings and activity history.
+ */
 export async function createTransaction(
   payload: CreateTransactionRequest,
 ): Promise<Transaction> {
@@ -288,6 +336,10 @@ export async function createTransaction(
   }
 }
 
+/**
+ * 中文：调用 GET /api/transactions?type=BUY 读取兼容的购买历史接口。
+ * English: Reads the compatibility purchase-history endpoint GET /api/transactions?type=BUY.
+ */
 export async function getTransactions(): Promise<Transaction[]> {
   if (USE_MOCK_DATA) {
     return [];
@@ -307,6 +359,10 @@ export async function getTransactions(): Promise<Transaction[]> {
   }
 }
 
+/**
+ * 中文：调用 GET /api/portfolio/activities 读取新增和删除记录，并转换为页面使用的活动模型。
+ * English: Fetches add/remove records from GET /api/portfolio/activities and maps them to the UI activity model.
+ */
 export async function getPortfolioActivities(): Promise<ActivityRecord[]> {
   if (USE_MOCK_DATA) {
     return [];
@@ -335,6 +391,10 @@ export async function getPortfolioActivities(): Promise<ActivityRecord[]> {
   }
 }
 
+/**
+ * 中文：调用 DELETE /api/portfolio/items/{id} 删除持仓及后端定义的关联历史。
+ * English: Deletes a holding and its backend-defined related history through DELETE /api/portfolio/items/{id}.
+ */
 export async function deletePortfolioItem(id: number): Promise<void> {
   if (USE_MOCK_DATA) {
     await ensureMockSeeded();
@@ -346,6 +406,10 @@ export async function deletePortfolioItem(id: number): Promise<void> {
   await api.delete(`/portfolio/items/${id}`);
 }
 
+/**
+ * 中文：调用 GET /api/portfolio/performance 获取当前总表现及逐资产指标。
+ * English: Fetches current portfolio-wide and per-asset metrics from GET /api/portfolio/performance.
+ */
 export async function getPortfolioPerformance(): Promise<PortfolioPerformance> {
   const response = await api.get("/portfolio/performance");
   const raw = response.data as RawPortfolioPerformance;
@@ -365,6 +429,10 @@ export async function getPortfolioPerformance(): Promise<PortfolioPerformance> {
   };
 }
 
+/**
+ * 中文：调用 GET /api/portfolio/performance/history?range=... 获取总体和逐资产历史曲线。
+ * English: Fetches overall and per-asset history from GET /api/portfolio/performance/history?range=....
+ */
 export async function getHistoricalPerformance(
   range: PerformanceRange,
 ): Promise<HistoricalPerformance> {
