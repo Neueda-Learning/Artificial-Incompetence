@@ -18,6 +18,10 @@ interface HoldingsPortfolioProps {
   performance: PortfolioPerformance | null;
 }
 
+/**
+ * 中文：显示可搜索、可排序的当前持仓表，并按代码关联实时表现数据。
+ * English: Displays searchable, sortable current holdings joined with live performance by symbol.
+ */
 function HoldingsPortfolio({
   holdings,
   performance,
@@ -26,6 +30,8 @@ function HoldingsPortfolio({
   const [sortKey, setSortKey] = useState<SortKey>("shares");
   const [isDesc, setIsDesc] = useState(true);
 
+  // 中文：只有筛选或排序条件变化时才重新计算表格行。
+  // English: Recomputes table rows only when filtering or sorting inputs change.
   const filteredRows = useMemo(() => {
     const normalizedSearch = searchText.trim().toUpperCase();
     const rows = holdings.filter((holding) =>
@@ -43,6 +49,10 @@ function HoldingsPortfolio({
     return rows;
   }, [holdings, isDesc, searchText, sortKey]);
 
+  /**
+   * 中文：再次点击同一列时反转排序方向，切换列时采用该列默认方向。
+   * English: Reverses direction for the same column or applies the new column's default direction.
+   */
   const handleSort = (nextSortKey: SortKey) => {
     if (sortKey === nextSortKey) {
       setIsDesc((current) => !current);

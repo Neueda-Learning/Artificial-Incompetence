@@ -28,6 +28,10 @@ import {
   aggregateHoldings,
 } from "./utils/portfolio";
 
+/**
+ * 中文：应用根组件，集中加载后端数据、维护共享状态、处理增删资产并配置页面路由。
+ * English: Root component that loads backend data, owns shared state, handles asset changes, and defines routes.
+ */
 function App() {
   const [items, setItems] = useState<PortfolioItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -41,6 +45,10 @@ function App() {
   const [isRemoveOpen, setIsRemoveOpen] = useState(false);
   const [activities, setActivities] = useState<ActivityRecord[]>([]);
 
+  /**
+   * 中文：刷新当前持仓列表，并记录本次成功加载的时间。
+   * English: Refreshes current holdings and records the latest successful load time.
+   */
   const refreshItems = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -55,6 +63,10 @@ function App() {
     }
   }, []);
 
+  /**
+   * 中文：刷新实时价格、成本、盈亏及 Day Change 等表现数据。
+   * English: Refreshes prices, costs, profit/loss, Day Change, and other performance data.
+   */
   const refreshPerformance = useCallback(async () => {
     setIsPerformanceLoading(true);
     setPerformanceError(null);
@@ -73,6 +85,10 @@ function App() {
     }
   }, []);
 
+  /**
+   * 中文：刷新购买和删除活动；失败时使用空数组，避免阻塞其他模块。
+   * English: Refreshes purchase/removal activity and falls back to an empty list without blocking other modules.
+   */
   const refreshActivities = useCallback(async () => {
     try {
       setActivities(await getPortfolioActivities());
@@ -81,6 +97,10 @@ function App() {
     }
   }, []);
 
+  /**
+   * 中文：并行刷新 Dashboard、Holdings 和 History 共同依赖的三组数据。
+   * English: Refreshes the three datasets shared by Dashboard, Holdings, and History in parallel.
+   */
   const refreshAll = useCallback(async () => {
     await Promise.all([
       refreshItems(),
@@ -98,6 +118,10 @@ function App() {
     [items],
   );
 
+  /**
+   * 中文：把 Add Asset 表单转换为买入请求，提交成功后重新同步全部页面数据。
+   * English: Converts the Add Asset form into a purchase request and resynchronizes all page data after success.
+   */
   const handleAddAsset = useCallback(
     async (payload: AddAssetPayload) => {
       const currentHolding = holdings.find(
@@ -134,6 +158,10 @@ function App() {
     [holdings, refreshAll],
   );
 
+  /**
+   * 中文：部分卖出时更新数量，全部删除时删除持仓，并在完成后刷新全部数据。
+   * English: Updates quantity for a partial removal, deletes the holding for a full removal, then refreshes all data.
+   */
   const handleRemoveAsset = useCallback(
     async (payload: RemoveAssetPayload) => {
       const targetHolding = holdings.find(
@@ -169,6 +197,10 @@ function App() {
     [holdings, refreshAll],
   );
 
+  /**
+   * 中文：市场数据超过五分钟未更新时生成提示信息。
+   * English: Produces a warning when market data has not been refreshed for five minutes.
+   */
   const staleWarning = useMemo(() => {
     if (!lastUpdated) {
       return null;

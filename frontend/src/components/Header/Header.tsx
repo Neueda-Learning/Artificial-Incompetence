@@ -9,6 +9,10 @@ interface HeaderProps {
   staleWarning: string | null;
 }
 
+/**
+ * 中文：显示全局标题、导航、数据更新时间以及新增和删除资产入口。
+ * English: Displays global branding, navigation, refresh time, and add/remove asset actions.
+ */
 function Header({
   onAddAsset,
   onRemoveAsset,

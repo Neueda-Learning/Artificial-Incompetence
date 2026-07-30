@@ -22,6 +22,10 @@ interface HoldingsProps {
   onRetry: () => void;
 }
 
+/**
+ * 中文：Holdings 页面容器，通过 URL 查询参数切换持仓、配置比例和历史记录三个视图。
+ * English: Holdings page container that switches positions, allocation, and history via URL query parameters.
+ */
 function Holdings({
   holdings,
   activities,

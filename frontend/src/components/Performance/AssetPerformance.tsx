@@ -15,6 +15,10 @@ interface AssetPerformanceProps {
   performance: PortfolioPerformance | null;
 }
 
+/**
+ * 中文：逐支股票展示数量、现价、平均成本、市值和未实现盈亏。
+ * English: Displays quantity, current price, average cost, market value, and unrealized P/L per asset.
+ */
 function AssetPerformance({
   holdings,
   performance,

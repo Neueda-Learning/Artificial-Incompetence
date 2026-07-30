@@ -286,6 +286,11 @@
   background: #fcfcfd;
 }
 
+.data-table th.numeric-cell,
+.data-table td.numeric-cell {
+  text-align: right;
+}
+
 .sort-button {
   background: transparent;
   border: none;

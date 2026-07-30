@@ -21,6 +21,10 @@ interface PerformanceProps {
 
 const RANGES: PerformanceRange[] = ["1W", "1M", "3M", "1Y", "ALL"];
 
+/**
+ * 中文：Performance 页面容器，加载所选时间范围的历史数据并组合总体和逐资产分析。
+ * English: Performance page container that loads the selected history range and combines overall and per-asset analysis.
+ */
 function Performance({
   holdings,
   performance,
@@ -37,6 +41,8 @@ function Performance({
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [historyRequestId, setHistoryRequestId] = useState(0);
 
+  // 中文：时间范围或重试编号变化时重新调用历史表现 REST API。
+  // English: Refetches the historical-performance REST API when the range or retry token changes.
   useEffect(() => {
     let isActive = true;
     setIsHistoryLoading(true);

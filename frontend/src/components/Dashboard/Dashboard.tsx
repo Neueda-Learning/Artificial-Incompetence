@@ -28,6 +28,10 @@ interface DashboardProps {
   onRemoveAsset: () => void;
 }
 
+/**
+ * 中文：Dashboard 主页面，组合总体指标、历史曲线、资产配置、Top Holdings 和 Recent Activity。
+ * English: Main dashboard composing summary metrics, history, allocation, top holdings, and recent activity.
+ */
 function Dashboard({
   holdings,
   activities,
