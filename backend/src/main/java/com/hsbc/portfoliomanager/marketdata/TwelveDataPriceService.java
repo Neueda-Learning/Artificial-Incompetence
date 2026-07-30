@@ -19,6 +19,8 @@ class TwelveDataPriceService {
 
     private static final String QUOTE_URL =
             "https://api.twelvedata.com/quote?symbol={symbol}&apikey={apikey}";
+    private static final String EXCHANGE_QUOTE_URL =
+            "https://api.twelvedata.com/quote?symbol={symbol}&exchange={exchange}&apikey={apikey}";
 
     private final RestTemplate restTemplate;
     private final MarketDataConfig config;
@@ -26,14 +28,33 @@ class TwelveDataPriceService {
     private final Map<String, CachedPrice> cache = new ConcurrentHashMap<>();
     private static final long CACHE_TTL_MILLIS = 60_000; // 1 minute cache
 
+    /**
+     * 中文：注入市场数据 HTTP 客户端和 API 配置。
+     * English: Injects the market data HTTP client and API configuration.
+     */
     TwelveDataPriceService(RestTemplate restTemplate, MarketDataConfig config) {
         this.restTemplate = restTemplate;
         this.config = config;
     }
 
+    /**
+     * 中文：优先从短期缓存读取价格，未命中时调用 Twelve Data quote 接口。
+     * English: Reads a price from the short-lived cache or calls the Twelve Data quote endpoint on a cache miss.
+     */
     Optional<MarketDataService.PriceData> fetchPrice(String symbol) {
+        return fetchPrice(symbol, null);
+    }
+
+    /**
+     * 中文：按资产代码和可选交易所查询价格，并使用组合键缓存结果。
+     * English: Fetches price by symbol and optional exchange, caching it with a composite key.
+     */
+    Optional<MarketDataService.PriceData> fetchPrice(String symbol, String exchange) {
+        String cacheKey = exchange == null || exchange.isBlank()
+                ? symbol
+                : symbol + "|" + exchange;
         // Check cache first
-        CachedPrice cached = cache.get(symbol);
+        CachedPrice cached = cache.get(cacheKey);
         if (cached != null && !cached.isExpired()) {
             log.debug("Cache hit for symbol: {}", symbol);
             return Optional.of(cached.priceData);
@@ -47,8 +68,15 @@ class TwelveDataPriceService {
 
         try {
             @SuppressWarnings("unchecked")
-            Map<String, Object> response = restTemplate.getForObject(
-                    QUOTE_URL, Map.class, symbol, apiKey);
+            Map<String, Object> response = exchange == null || exchange.isBlank()
+                    ? restTemplate.getForObject(QUOTE_URL, Map.class, symbol, apiKey)
+                    : restTemplate.getForObject(
+                            EXCHANGE_QUOTE_URL,
+                            Map.class,
+                            symbol,
+                            exchange,
+                            apiKey
+                    );
 
             if (response == null) {
                 log.warn("Empty response from TwelveData for symbol: {}", symbol);
@@ -61,23 +89,32 @@ class TwelveDataPriceService {
                 return Optional.empty();
             }
 
-            String priceStr = (String) response.get("close");
+            Object priceValue = response.get("close");
+            Object previousCloseValue = response.get("previous_close");
             String currency = (String) response.get("currency");
 
-            if (priceStr == null) {
+            if (priceValue == null) {
                 log.warn("No price data in TwelveData response for symbol: {}", symbol);
                 return Optional.empty();
             }
 
-            BigDecimal price = new BigDecimal(priceStr);
+            BigDecimal price = new BigDecimal(priceValue.toString());
+            BigDecimal previousClose = previousCloseValue == null
+                    ? null
+                    : new BigDecimal(previousCloseValue.toString());
             if (currency == null) {
                 currency = "USD"; // default assumption
             }
 
             MarketDataService.PriceData priceData = new MarketDataService.PriceData(
-                    symbol, price, currency, Instant.now());
+                    symbol,
+                    price,
+                    previousClose,
+                    currency,
+                    Instant.now()
+            );
 
-            cache.put(symbol, new CachedPrice(priceData, Instant.now().toEpochMilli()));
+            cache.put(cacheKey, new CachedPrice(priceData, Instant.now().toEpochMilli()));
 
             return Optional.of(priceData);
 
@@ -91,6 +128,10 @@ class TwelveDataPriceService {
     }
 
     private record CachedPrice(MarketDataService.PriceData priceData, long fetchedAtMillis) {
+        /**
+         * 中文：判断当前价格缓存是否已经超过有效期。
+         * English: Determines whether the cached current price has exceeded its time-to-live.
+         */
         boolean isExpired() {
             return System.currentTimeMillis() - fetchedAtMillis > CACHE_TTL_MILLIS;
         }

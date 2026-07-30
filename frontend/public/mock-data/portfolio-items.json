@@ -1,0 +1,38 @@
+[
+  {
+    "id": 101,
+    "assetType": "STOCK",
+    "symbol": "AAPL",
+    "quantity": 10
+  },
+  {
+    "id": 102,
+    "assetType": "STOCK",
+    "symbol": "AAPL",
+    "quantity": 5
+  },
+  {
+    "id": 103,
+    "assetType": "STOCK",
+    "symbol": "0700.HK",
+    "quantity": 12
+  },
+  {
+    "id": 104,
+    "assetType": "ETF",
+    "symbol": "VOO",
+    "quantity": 8
+  },
+  {
+    "id": 105,
+    "assetType": "BOND",
+    "symbol": "TLT",
+    "quantity": 15
+  },
+  {
+    "id": 106,
+    "assetType": "CASH",
+    "symbol": "USD-CASH",
+    "quantity": 15000
+  }
+]
